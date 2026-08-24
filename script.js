@@ -14,6 +14,12 @@ const heightLever = document.getElementById("height-lever");
 const leverFill = document.getElementById("lever-fill");
 const leverHandle = document.getElementById("lever-handle");
 const droplets = Array.from(document.querySelectorAll(".droplet"));
+const liftArrows = Array.from(document.querySelectorAll(".lift-arrow"));
+const LIFT_ARROW_OFFSETS = [
+  [0, 34],
+  [-14, 42],
+  [14, 42],
+];
 
 const MESSAGES = {
   // 「実験モード」という言葉が伝わらなかった非同期テストのフィードバックを受けて、
@@ -96,9 +102,32 @@ function setGaugeFill(rect, ratio) {
   rect.setAttribute("height", height);
 }
 
+function triangleUpPoints(cx, cy) {
+  return `${cx},${cy - 6} ${cx - 6},${cy + 6} ${cx + 6},${cy + 6}`;
+}
+
+// 高さが上がった瞬間だけ、空気の塊の下から矢印がフワッと浮かぶ演出
+function pulseLiftArrows() {
+  const cx = parseFloat(airMass.getAttribute("cx"));
+  const cy = parseFloat(airMass.getAttribute("cy"));
+  liftArrows.forEach((arrow, index) => {
+    const [dx, dy] = LIFT_ARROW_OFFSETS[index];
+    arrow.setAttribute("points", triangleUpPoints(cx + dx, cy + dy));
+    arrow.classList.remove("pulse");
+    requestAnimationFrame(() => arrow.classList.add("pulse"));
+  });
+}
+
+let previousHeight = 0;
+
 function updateGauges(height) {
   const temp = INITIAL_TEMP - height * LAPSE_RATE;
   const capacity = saturationVaporAmount(temp);
+
+  if (height > previousHeight + 0.5) {
+    pulseLiftArrows();
+  }
+  previousHeight = height;
 
   heightValueEl.textContent = Math.round((height / EXPERIMENT_MAX_HEIGHT) * HEIGHT_DISPLAY_SCALE);
   tempValueEl.textContent = temp.toFixed(1);

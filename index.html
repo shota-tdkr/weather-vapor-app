@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>天気をつくるアプリ</title>
   <!-- ?v=N はキャッシュ対策。style.css/script.js を編集したら両方の番号を1つ上げる -->
-  <link rel="stylesheet" href="./style.css?v=1">
+  <link rel="stylesheet" href="./style.css?v=2">
 </head>
 <body>
   <div class="toolbar">
@@ -25,6 +25,13 @@
 
       <!-- 空気の塊 -->
       <circle id="air-mass" cx="60" cy="250" r="22" />
+
+      <!-- 上昇エフェクト（高さが上がった瞬間だけ、山と同じ△の形でフワッと浮かぶ） -->
+      <g class="lift-arrows">
+        <polygon class="lift-arrow" points="0,0 0,0 0,0" />
+        <polygon class="lift-arrow" points="0,0 0,0 0,0" />
+        <polygon class="lift-arrow" points="0,0 0,0 0,0" />
+      </g>
     </svg>
 
     <div class="lever">
@@ -75,6 +82,6 @@
     </div>
   </main>
   <div id="legend" class="legend"></div>
-  <script src="./script.js?v=1"></script>
+  <script src="./script.js?v=2"></script>
 </body>
 </html>
