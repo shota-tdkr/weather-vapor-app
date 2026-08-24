@@ -15,16 +15,18 @@ const leverFill = document.getElementById("lever-fill");
 const leverHandle = document.getElementById("lever-handle");
 
 const MESSAGES = {
-  modeNormal: "通常モード",
-  modeExperiment: "実験モード",
-  switchToExperiment: "実験モードにする",
-  switchToNormal: "通常モードにする",
+  // 「実験モード」という言葉が伝わらなかった非同期テストのフィードバックを受けて、
+  // 「モード」という抽象的な言葉をやめ、押した後に何ができるかを直接言うラベルにしている
+  modeNormal: "○は地図で動かせます",
+  modeExperiment: "○は高さだけ動かせます",
+  switchToExperiment: "高さだけ動かせるようにする",
+  switchToNormal: "地図で動かせるようにする",
   // 以下、デバッグ・テスト用の凡例（正式なチュートリアルはCLAUDE.mdの別機能として後日実装）
   legendTitle: "記号の説明（デバッグ用）",
-  legendAirMass: "○ = 空気の塊。通常モードでは地図上をドラッグして動かせます。",
-  legendMountain: "▲ = 山。通常モードではここに近づくと自動で高さが上がります。",
-  legendNormalMode: "通常モード: ○を自由にドラッグできます。山に近づくと自動で高さが上がります。",
-  legendExperimentMode: "実験モード: ○は地図上に固定されます。代わりに右の「高さレバー」をドラッグすると、山に関係なく高さだけを操作できます。",
+  legendAirMass: "○ = 空気の塊。「地図で動かせる」状態のときは、地図上をドラッグして動かせます。",
+  legendMountain: "▲ = 山。○を近づけると自動で高さが上がります（地図で動かせるときのみ）。",
+  legendNormalMode: "○が地図で動くとき: 自由にドラッグできます。山に近づくと自動で高さが上がります。",
+  legendExperimentMode: "○が高さだけ動くとき: ○は固定されたまま、右の「高さレバー」をドラッグすると、山に関係なく高さだけを操作できます。",
 };
 
 // 気温(℃)と飽和水蒸気量(g/m³)の対応表（教科書の値と照合済み）
