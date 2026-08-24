@@ -10,6 +10,9 @@ const modeToggleButton = document.getElementById("mode-toggle");
 const modeLabelEl = document.getElementById("mode-label");
 const heightValueEl = document.getElementById("height-value");
 const legendEl = document.getElementById("legend");
+const heightLever = document.getElementById("height-lever");
+const leverFill = document.getElementById("lever-fill");
+const leverHandle = document.getElementById("lever-handle");
 
 const MESSAGES = {
   modeNormal: "通常モード",
@@ -18,10 +21,10 @@ const MESSAGES = {
   switchToNormal: "通常モードにする",
   // 以下、デバッグ・テスト用の凡例（正式なチュートリアルはCLAUDE.mdの別機能として後日実装）
   legendTitle: "記号の説明（デバッグ用）",
-  legendAirMass: "○ = 空気の塊。ドラッグして動かせます。",
+  legendAirMass: "○ = 空気の塊。通常モードでは地図上をドラッグして動かせます。",
   legendMountain: "▲ = 山。通常モードではここに近づくと自動で高さが上がります。",
   legendNormalMode: "通常モード: ○を自由にドラッグできます。山に近づくと自動で高さが上がります。",
-  legendExperimentMode: "実験モード: ○は上下にしか動きません。山に関係なく、動かした分だけ高さが変わります。",
+  legendExperimentMode: "実験モード: ○は地図上に固定されます。代わりに右の「高さレバー」をドラッグすると、山に関係なく高さだけを操作できます。",
 };
 
 // 気温(℃)と飽和水蒸気量(g/m³)の対応表（教科書の値と照合済み）
@@ -105,6 +108,10 @@ function updateGauges(height) {
     GAUGE_TRACK_TOP + GAUGE_TRACK_HEIGHT - (HELD_VAPOR / VAPOR_MAX) * GAUGE_TRACK_HEIGHT;
   heldMarker.setAttribute("y1", heldY);
   heldMarker.setAttribute("y2", heldY);
+
+  const leverRatio = clamp(height / EXPERIMENT_MAX_HEIGHT, 0, 1);
+  setGaugeFill(leverFill, leverRatio);
+  leverHandle.setAttribute("cy", GAUGE_TRACK_TOP + GAUGE_TRACK_HEIGHT - leverRatio * GAUGE_TRACK_HEIGHT);
 }
 
 // 山の三角形記号の重心を「山の位置」として使う（SVG側の記号がそのままデータになる）
@@ -132,16 +139,17 @@ function heightFromMountainProximity(x, y) {
 let mode = "normal"; // "normal" | "experiment"
 let currentHeight = 0;
 let dragOffset = null;
-let experimentBaseline = null;
+let leverDragStart = null;
 
 function setMode(nextMode) {
   mode = nextMode;
   const isExperiment = mode === "experiment";
   modeLabelEl.textContent = isExperiment ? MESSAGES.modeExperiment : MESSAGES.modeNormal;
   modeToggleButton.textContent = isExperiment ? MESSAGES.switchToNormal : MESSAGES.switchToExperiment;
-  experimentBaseline = null;
+  airMass.classList.toggle("disabled", isExperiment);
+  leverHandle.classList.toggle("disabled", !isExperiment);
   if (!isExperiment) {
-    // 通常モードに戻った瞬間、現在位置から高さを自動で再計算する
+    // 通常モードに戻った瞬間、現在位置（実験モード中は動いていない）から高さを自動で再計算する
     const cx = parseFloat(airMass.getAttribute("cx"));
     const cy = parseFloat(airMass.getAttribute("cy"));
     currentHeight = heightFromMountainProximity(cx, cy);
@@ -153,43 +161,32 @@ modeToggleButton.addEventListener("click", () => {
   setMode(mode === "normal" ? "experiment" : "normal");
 });
 
-function toSvgPoint(clientX, clientY) {
-  const point = map.createSVGPoint();
+function toSvgPoint(svgEl, clientX, clientY) {
+  const point = svgEl.createSVGPoint();
   point.x = clientX;
   point.y = clientY;
-  return point.matrixTransform(map.getScreenCTM().inverse());
+  return point.matrixTransform(svgEl.getScreenCTM().inverse());
 }
 
+// 通常モード: ○を地図上でドラッグ。山への近さで高さが自動で決まる
 airMass.addEventListener("pointerdown", (event) => {
+  if (mode !== "normal") return;
   airMass.setPointerCapture(event.pointerId);
-  const svgPoint = toSvgPoint(event.clientX, event.clientY);
+  const svgPoint = toSvgPoint(map, event.clientX, event.clientY);
   dragOffset = {
     dx: svgPoint.x - parseFloat(airMass.getAttribute("cx")),
     dy: svgPoint.y - parseFloat(airMass.getAttribute("cy")),
   };
-  if (mode === "experiment") {
-    experimentBaseline = {
-      cy: parseFloat(airMass.getAttribute("cy")),
-      height: currentHeight,
-    };
-  }
 });
 
 airMass.addEventListener("pointermove", (event) => {
   if (!dragOffset) return;
-  const svgPoint = toSvgPoint(event.clientX, event.clientY);
+  const svgPoint = toSvgPoint(map, event.clientX, event.clientY);
+  const cx = svgPoint.x - dragOffset.dx;
   const cy = svgPoint.y - dragOffset.dy;
-
-  if (mode === "experiment") {
-    airMass.setAttribute("cy", cy);
-    const deltaHeight = experimentBaseline.cy - cy;
-    currentHeight = clamp(experimentBaseline.height + deltaHeight, 0, EXPERIMENT_MAX_HEIGHT);
-  } else {
-    const cx = svgPoint.x - dragOffset.dx;
-    airMass.setAttribute("cx", cx);
-    airMass.setAttribute("cy", cy);
-    currentHeight = heightFromMountainProximity(cx, cy);
-  }
+  airMass.setAttribute("cx", cx);
+  airMass.setAttribute("cy", cy);
+  currentHeight = heightFromMountainProximity(cx, cy);
   updateGauges(currentHeight);
 });
 
@@ -198,11 +195,37 @@ function endDrag(event) {
     airMass.releasePointerCapture(event.pointerId);
   }
   dragOffset = null;
-  experimentBaseline = null;
 }
 
 airMass.addEventListener("pointerup", endDrag);
 airMass.addEventListener("pointercancel", endDrag);
+
+// 実験モード: ○は動かさず、高さレバーのドラッグだけが高さを変える
+heightLever.addEventListener("pointerdown", (event) => {
+  if (mode !== "experiment") return;
+  heightLever.setPointerCapture(event.pointerId);
+  const svgPoint = toSvgPoint(heightLever, event.clientX, event.clientY);
+  leverDragStart = { svgY: svgPoint.y, height: currentHeight };
+});
+
+heightLever.addEventListener("pointermove", (event) => {
+  if (!leverDragStart) return;
+  const svgPoint = toSvgPoint(heightLever, event.clientX, event.clientY);
+  const deltaY = leverDragStart.svgY - svgPoint.y; // 上に動かすほど高さが増える
+  const deltaHeight = deltaY * (EXPERIMENT_MAX_HEIGHT / GAUGE_TRACK_HEIGHT);
+  currentHeight = clamp(leverDragStart.height + deltaHeight, 0, EXPERIMENT_MAX_HEIGHT);
+  updateGauges(currentHeight);
+});
+
+function endLeverDrag(event) {
+  if (heightLever.hasPointerCapture(event.pointerId)) {
+    heightLever.releasePointerCapture(event.pointerId);
+  }
+  leverDragStart = null;
+}
+
+heightLever.addEventListener("pointerup", endLeverDrag);
+heightLever.addEventListener("pointercancel", endLeverDrag);
 
 function renderLegend() {
   legendEl.innerHTML = `
