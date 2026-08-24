@@ -53,7 +53,7 @@ const GAUGE_TRACK_TOP = 20;
 const GAUGE_TRACK_HEIGHT = 210;
 
 // 通常モード: 山への接近で自動的に高さが上がる
-const MOUNTAIN_INFLUENCE_RADIUS = 180; // 山頂からこの距離より遠いと山の影響なし
+const MOUNTAIN_INFLUENCE_RADIUS = 120; // 山頂からこの距離より遠いと山の影響なし
 const MOUNTAIN_MAX_HEIGHT = 120; // 山頂での高さ
 
 // 実験モード: 縦ドラッグの移動量がそのまま高さになる
