@@ -2,4 +2,85 @@ body {
   font-family: sans-serif;
   text-align: center;
   padding: 2rem;
+  background: #eaeaea;
+  color: #1c2541;
+}
+
+.app-layout {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 2rem;
+}
+
+#map {
+  display: block;
+  width: 100%;
+  max-width: 700px;
+  flex: 1 1 500px;
+}
+
+.gauges {
+  display: flex;
+  gap: 2rem;
+  flex: 0 0 auto;
+}
+
+.gauge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.9rem;
+}
+
+.gauge svg {
+  height: 260px;
+}
+
+.thermometer {
+  width: 50px;
+}
+
+.vapor-gauge {
+  width: 70px;
+}
+
+.land {
+  fill: #1c2541;
+}
+
+.mountains polygon {
+  fill: #eaeaea;
+  stroke: #1c2541;
+  stroke-width: 1.5;
+}
+
+#air-mass {
+  fill: #eaeaea;
+  stroke: #1c2541;
+  stroke-width: 2;
+  cursor: grab;
+  touch-action: none;
+}
+
+#air-mass:active {
+  cursor: grabbing;
+}
+
+.gauge-track {
+  fill: #eaeaea;
+  stroke: #1c2541;
+  stroke-width: 2;
+}
+
+.gauge-fill {
+  fill: #1c2541;
+}
+
+.gauge-marker {
+  stroke: #1c2541;
+  stroke-width: 3;
+  stroke-dasharray: 4 3;
 }
