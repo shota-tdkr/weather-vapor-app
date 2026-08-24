@@ -5,13 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>天気をつくるアプリ</title>
   <!-- ?v=N はキャッシュ対策。style.css/script.js を編集したら両方の番号を1つ上げる -->
-  <link rel="stylesheet" href="./style.css?v=4">
+  <link rel="stylesheet" href="./style.css?v=5">
 </head>
 <body>
   <div class="toolbar">
     <button id="mode-toggle" class="mode-toggle" type="button">高さだけ動かせるようにする</button>
     <p>今: <span id="mode-label">○は地図で動かせます</span></p>
     <p>高さ: <span id="height-value">0</span> / 100</p>
+    <button id="tutorial-replay" class="tutorial-replay" type="button"></button>
   </div>
   <main class="app-layout">
     <svg id="map" viewBox="0 0 400 320" xmlns="http://www.w3.org/2000/svg" aria-label="山と空気の塊">
@@ -82,12 +83,25 @@
     </div>
   </main>
 
-  <div class="change-log">
+  <div id="change-log" class="change-log">
     <p class="change-log-title">変化ログ</p>
     <ul id="change-log-list"></ul>
   </div>
 
   <div id="legend" class="legend"></div>
-  <script src="./script.js?v=4"></script>
+
+  <!-- チュートリアル（初回起動時のみ、JS側でlocalStorageを見て表示制御） -->
+  <div id="tutorial-overlay" class="tutorial-overlay" hidden>
+    <div id="tutorial-bubble" class="tutorial-bubble">
+      <p id="tutorial-step-label" class="tutorial-step-label"></p>
+      <p id="tutorial-text"></p>
+      <div class="tutorial-actions">
+        <button id="tutorial-skip" type="button" class="tutorial-skip"></button>
+        <button id="tutorial-next" type="button" class="tutorial-next"></button>
+      </div>
+    </div>
+  </div>
+
+  <script src="./script.js?v=5"></script>
 </body>
 </html>

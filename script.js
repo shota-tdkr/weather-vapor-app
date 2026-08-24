@@ -21,6 +21,14 @@ const LIFT_ARROW_OFFSETS = [
   [14, 42],
 ];
 const changeLogList = document.getElementById("change-log-list");
+const changeLogEl = document.getElementById("change-log");
+const tutorialOverlay = document.getElementById("tutorial-overlay");
+const tutorialBubble = document.getElementById("tutorial-bubble");
+const tutorialStepLabelEl = document.getElementById("tutorial-step-label");
+const tutorialTextEl = document.getElementById("tutorial-text");
+const tutorialNextButton = document.getElementById("tutorial-next");
+const tutorialSkipButton = document.getElementById("tutorial-skip");
+const tutorialReplayButton = document.getElementById("tutorial-replay");
 
 const MESSAGES = {
   // 「実験モード」という言葉が伝わらなかった非同期テストのフィードバックを受けて、
@@ -29,7 +37,7 @@ const MESSAGES = {
   modeExperiment: "○は高さだけ動かせます",
   switchToExperiment: "高さだけ動かせるようにする",
   switchToNormal: "地図で動かせるようにする",
-  // 以下、デバッグ・テスト用の凡例（正式なチュートリアルはCLAUDE.mdの別機能として後日実装）
+  // 以下、デバッグ・テスト用の凡例（初回起動時の正式なチュートリアルとは別物、常時表示の補足）
   legendTitle: "記号の説明（デバッグ用）",
   legendAirMass: "○ = 空気の塊。「地図で動かせる」状態のときは、地図上をドラッグして動かせます。",
   legendMountain: "▲ = 山。○を近づけると自動で高さが上がります（地図で動かせるときのみ）。",
@@ -50,6 +58,15 @@ const MESSAGES = {
   logCondensationMore: "→ 抱えきれない水蒸気の量が増え、水滴が増えました",
   logCondensationLess: "→ 抱えきれない水蒸気の量が減り、水滴も減りました",
   logCondensationStillRoom: "→ まだ水蒸気を抱えられるので、水滴は発生していません",
+  // チュートリアル（初回起動時のみ、吹き出しガイド）
+  tutorialStepLabel: (current, total) => `${current} / ${total}`,
+  tutorialStep1: "○（空気の塊）をドラッグして、山（▲）に近づけてみよう",
+  tutorialStep2: "このボタンを押すと「高さだけ動かせる」状態になります。高さレバーだけで高さを操作できます",
+  tutorialStep3: "下の変化ログに、なぜそうなったかが表示されます",
+  tutorialNext: "次へ",
+  tutorialFinish: "はじめる",
+  tutorialSkip: "スキップ",
+  tutorialReplay: "使い方を見る",
 };
 
 // 気温(℃)と飽和水蒸気量(g/m³)の対応表（教科書の値と照合済み）
@@ -401,3 +418,93 @@ function renderLegend() {
 
 renderLegend();
 setMode("normal");
+
+// チュートリアル（初回起動時のみ、今のシーンに吹き出しを重ねるだけで別画面には遷移しない）
+const TUTORIAL_STORAGE_KEY = "weather-app-tutorial-seen";
+
+const TUTORIAL_STEPS = [
+  { target: airMass, text: MESSAGES.tutorialStep1 },
+  { target: modeToggleButton, text: MESSAGES.tutorialStep2 },
+  { target: changeLogEl, text: MESSAGES.tutorialStep3 },
+];
+
+let tutorialStepIndex = 0;
+let tutorialHighlightedEl = null;
+tutorialSkipButton.textContent = MESSAGES.tutorialSkip;
+
+function positionTutorialBubble(target) {
+  const rect = target.getBoundingClientRect();
+  const bubbleWidth = tutorialBubble.offsetWidth;
+  const bubbleHeight = tutorialBubble.offsetHeight;
+
+  let left = clamp(rect.left, 12, window.innerWidth - bubbleWidth - 12);
+  let top = rect.bottom + 12;
+  if (top + bubbleHeight > window.innerHeight - 12) {
+    top = rect.top - bubbleHeight - 12; // 下に入らなければ上に出す
+  }
+  top = clamp(top, 12, window.innerHeight - bubbleHeight - 12);
+
+  tutorialBubble.style.left = `${left}px`;
+  tutorialBubble.style.top = `${top}px`;
+}
+
+function showTutorialStep(index) {
+  if (tutorialHighlightedEl) {
+    tutorialHighlightedEl.classList.remove("tutorial-highlight");
+  }
+  const step = TUTORIAL_STEPS[index];
+  tutorialHighlightedEl = step.target;
+  tutorialHighlightedEl.classList.add("tutorial-highlight");
+  tutorialTextEl.textContent = step.text;
+  tutorialStepLabelEl.textContent = MESSAGES.tutorialStepLabel(index + 1, TUTORIAL_STEPS.length);
+  tutorialNextButton.textContent =
+    index === TUTORIAL_STEPS.length - 1 ? MESSAGES.tutorialFinish : MESSAGES.tutorialNext;
+  positionTutorialBubble(step.target);
+}
+
+function endTutorial() {
+  if (tutorialHighlightedEl) {
+    tutorialHighlightedEl.classList.remove("tutorial-highlight");
+  }
+  tutorialOverlay.hidden = true;
+  try {
+    localStorage.setItem(TUTORIAL_STORAGE_KEY, "1");
+  } catch (error) {
+    // localStorageが使えない環境でも致命的にならないよう無視する
+  }
+}
+
+function startTutorial() {
+  tutorialStepIndex = 0;
+  tutorialOverlay.hidden = false;
+  showTutorialStep(tutorialStepIndex);
+}
+
+tutorialNextButton.addEventListener("click", () => {
+  tutorialStepIndex += 1;
+  if (tutorialStepIndex >= TUTORIAL_STEPS.length) {
+    endTutorial();
+  } else {
+    showTutorialStep(tutorialStepIndex);
+  }
+});
+
+tutorialSkipButton.addEventListener("click", endTutorial);
+tutorialReplayButton.addEventListener("click", startTutorial);
+tutorialReplayButton.textContent = MESSAGES.tutorialReplay;
+
+window.addEventListener("resize", () => {
+  if (!tutorialOverlay.hidden && tutorialHighlightedEl) {
+    positionTutorialBubble(tutorialHighlightedEl);
+  }
+});
+
+let tutorialAlreadySeen = false;
+try {
+  tutorialAlreadySeen = localStorage.getItem(TUTORIAL_STORAGE_KEY) === "1";
+} catch (error) {
+  tutorialAlreadySeen = false;
+}
+if (!tutorialAlreadySeen) {
+  startTutorial();
+}
