@@ -6,6 +6,32 @@ body {
   color: #1c2541;
 }
 
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  font-size: 0.9rem;
+}
+
+.mode-toggle {
+  font-family: inherit;
+  font-size: 0.95rem;
+  padding: 0.5rem 1.2rem;
+  border: 2px solid #1c2541;
+  border-radius: 6px;
+  background: #eaeaea;
+  color: #1c2541;
+  cursor: pointer;
+}
+
+.mode-toggle:hover {
+  background: #1c2541;
+  color: #eaeaea;
+}
+
 .app-layout {
   display: flex;
   flex-wrap: wrap;
@@ -83,4 +109,28 @@ body {
   stroke: #1c2541;
   stroke-width: 3;
   stroke-dasharray: 4 3;
+}
+
+.legend {
+  max-width: 500px;
+  margin: 2rem auto 0;
+  padding: 0.8rem 1rem;
+  border: 1px dashed #1c2541;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  text-align: left;
+}
+
+.legend-title {
+  margin: 0 0 0.4rem;
+  font-weight: bold;
+}
+
+.legend ul {
+  margin: 0;
+  padding-left: 1.2rem;
+}
+
+.legend li {
+  margin-bottom: 0.2rem;
 }

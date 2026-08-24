@@ -7,6 +7,11 @@
   <link rel="stylesheet" href="./style.css">
 </head>
 <body>
+  <div class="toolbar">
+    <button id="mode-toggle" class="mode-toggle" type="button">実験モードにする</button>
+    <p>現在のモード: <span id="mode-label">通常モード</span></p>
+    <p>高さ: <span id="height-value">0</span> / 100</p>
+  </div>
   <main class="app-layout">
     <svg id="map" viewBox="0 0 570 480" xmlns="http://www.w3.org/2000/svg" aria-label="日本地図">
       <!-- 陸地（県境なし、簡略化。海岸線はNatural Earth（パブリックドメイン）の座標を基に作成） -->
@@ -53,6 +58,7 @@
       </div>
     </div>
   </main>
+  <div id="legend" class="legend"></div>
   <script src="./script.js"></script>
 </body>
 </html>
