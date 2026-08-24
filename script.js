@@ -229,10 +229,35 @@ function appendLogLine(text) {
   changeLogList.scrollTop = changeLogList.scrollHeight;
 }
 
+// 短時間に何度も操作されても因果チェーン同士が混ざらないよう、1つずつ順番に表示するキュー
+const logQueue = [];
+let logQueueRunning = false;
+
+function runLogQueue() {
+  if (logQueue.length === 0) {
+    logQueueRunning = false;
+    return;
+  }
+  logQueueRunning = true;
+  const lines = logQueue.shift();
+  let index = 0;
+  function showNext() {
+    if (index < lines.length) {
+      appendLogLine(lines[index]);
+      index += 1;
+      setTimeout(showNext, CHANGE_LOG_STEP_DELAY);
+    } else {
+      runLogQueue();
+    }
+  }
+  showNext();
+}
+
 function appendLogCascade(lines) {
-  lines.forEach((line, index) => {
-    setTimeout(() => appendLogLine(line), index * CHANGE_LOG_STEP_DELAY);
-  });
+  logQueue.push(lines);
+  if (!logQueueRunning) {
+    runLogQueue();
+  }
 }
 
 function logHeightChange(beforeHeight, afterHeight) {
