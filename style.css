@@ -43,8 +43,8 @@ body {
 #map {
   display: block;
   width: 100%;
-  max-width: 700px;
-  flex: 1 1 500px;
+  max-width: 480px;
+  flex: 1 1 360px;
 }
 
 .gauges {
@@ -78,9 +78,7 @@ body {
 }
 
 .mountains polygon {
-  fill: #eaeaea;
-  stroke: #1c2541;
-  stroke-width: 1.5;
+  fill: #1c2541;
 }
 
 #air-mass {
@@ -150,6 +148,40 @@ body {
   stroke: #1c2541;
   stroke-width: 3;
   stroke-dasharray: 4 3;
+}
+
+.cup-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.8rem;
+  flex: 0 0 auto;
+}
+
+.cup {
+  width: 100px;
+  height: 140px;
+}
+
+.cup-liquid {
+  fill: #1c2541;
+}
+
+.cup-outline {
+  fill: none;
+  stroke: #1c2541;
+  stroke-width: 3;
+}
+
+.droplet {
+  fill: #1c2541;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.droplet.visible {
+  opacity: 1;
 }
 
 .legend {

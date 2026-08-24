@@ -13,6 +13,7 @@ const legendEl = document.getElementById("legend");
 const heightLever = document.getElementById("height-lever");
 const leverFill = document.getElementById("lever-fill");
 const leverHandle = document.getElementById("lever-handle");
+const droplets = Array.from(document.querySelectorAll(".droplet"));
 
 const MESSAGES = {
   // 「実験モード」という言葉が伝わらなかった非同期テストのフィードバックを受けて、
@@ -27,6 +28,7 @@ const MESSAGES = {
   legendMountain: "▲ = 山。○を近づけると自動で高さが上がります（地図で動かせるときのみ）。",
   legendNormalMode: "○が地図で動くとき: 自由にドラッグできます。山に近づくと自動で高さが上がります。",
   legendExperimentMode: "○が高さだけ動くとき: ○は固定されたまま、右の「高さレバー」をドラッグすると、山に関係なく高さだけを操作できます。",
+  legendCup: "コップの水滴 = 保有水蒸気量が飽和水蒸気量を超えた分。あふれた量が多いほど、水滴が増えます。",
 };
 
 // 気温(℃)と飽和水蒸気量(g/m³)の対応表（教科書の値と照合済み）
@@ -51,8 +53,8 @@ const GAUGE_TRACK_TOP = 20;
 const GAUGE_TRACK_HEIGHT = 210;
 
 // 通常モード: 山への接近で自動的に高さが上がる
-const MOUNTAIN_INFLUENCE_RADIUS = 70; // この距離より遠いと山の影響なし
-const MOUNTAIN_MAX_HEIGHT = 120; // 山の真上での高さ
+const MOUNTAIN_INFLUENCE_RADIUS = 180; // 山頂からこの距離より遠いと山の影響なし
+const MOUNTAIN_MAX_HEIGHT = 120; // 山頂での高さ
 
 // 実験モード: 縦ドラッグの移動量がそのまま高さになる
 const EXPERIMENT_MAX_HEIGHT = 250;
@@ -114,18 +116,23 @@ function updateGauges(height) {
   const leverRatio = clamp(height / EXPERIMENT_MAX_HEIGHT, 0, 1);
   setGaugeFill(leverFill, leverRatio);
   leverHandle.setAttribute("cy", GAUGE_TRACK_TOP + GAUGE_TRACK_HEIGHT - leverRatio * GAUGE_TRACK_HEIGHT);
+
+  // 保有水蒸気量が飽和水蒸気量を超えた分だけ、コップの水滴を1つずつ増やす
+  const excess = Math.max(0, HELD_VAPOR - capacity);
+  droplets.forEach((droplet, index) => {
+    const threshold = (HELD_VAPOR * (index + 1)) / droplets.length;
+    droplet.classList.toggle("visible", excess >= threshold);
+  });
 }
 
-// 山の三角形記号の重心を「山の位置」として使う（SVG側の記号がそのままデータになる）
+// 山の頂点（yが最小の点）を「山の位置」として使う（SVG側の図形がそのままデータになる）
 const MOUNTAIN_CENTERS = Array.from(document.querySelectorAll(".mountains polygon")).map((polygon) => {
   const points = polygon
     .getAttribute("points")
     .trim()
     .split(/\s+/)
     .map((pair) => pair.split(",").map(Number));
-  const x = points.reduce((sum, [px]) => sum + px, 0) / points.length;
-  const y = points.reduce((sum, [, py]) => sum + py, 0) / points.length;
-  return { x, y };
+  return points.reduce((peak, [x, y]) => (y < peak.y ? { x, y } : peak), { x: points[0][0], y: Infinity });
 });
 
 function heightFromMountainProximity(x, y) {
@@ -237,6 +244,7 @@ function renderLegend() {
       <li>${MESSAGES.legendMountain}</li>
       <li>${MESSAGES.legendNormalMode}</li>
       <li>${MESSAGES.legendExperimentMode}</li>
+      <li>${MESSAGES.legendCup}</li>
     </ul>
   `;
 }
