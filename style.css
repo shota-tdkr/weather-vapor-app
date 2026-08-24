@@ -207,6 +207,46 @@ body {
   opacity: 1;
 }
 
+.change-log {
+  max-width: 500px;
+  margin: 2rem auto 0;
+  padding: 0.8rem 1rem;
+  border: 2px solid #1c2541;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  text-align: left;
+}
+
+.change-log-title {
+  margin: 0 0 0.4rem;
+  font-weight: bold;
+}
+
+#change-log-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+#change-log-list li {
+  margin-bottom: 0.3rem;
+  opacity: 0;
+  animation: log-fade-in 0.3s ease-out forwards;
+}
+
+@keyframes log-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .legend {
   max-width: 500px;
   margin: 2rem auto 0;

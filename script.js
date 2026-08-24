@@ -20,6 +20,7 @@ const LIFT_ARROW_OFFSETS = [
   [-14, 42],
   [14, 42],
 ];
+const changeLogList = document.getElementById("change-log-list");
 
 const MESSAGES = {
   // 「実験モード」という言葉が伝わらなかった非同期テストのフィードバックを受けて、
@@ -35,6 +36,20 @@ const MESSAGES = {
   legendNormalMode: "○が地図で動くとき: 自由にドラッグできます。山に近づくと自動で高さが上がります。",
   legendExperimentMode: "○が高さだけ動くとき: ○は固定されたまま、右の「高さレバー」をドラッグすると、山に関係なく高さだけを操作できます。",
   legendCup: "コップの水滴 = 保有水蒸気量が飽和水蒸気量を超えた分。あふれた量が多いほど、水滴が増えます。",
+  // 変化ログ（因果を段階表示するテキスト）。数値を埋め込むため関数にしているが、
+  // 文言はすべてここに集約する（コード中に日本語を散らさない）
+  changeLogTitle: "変化ログ",
+  logLifted: "空気の塊を持ち上げました",
+  logLowered: "空気の塊を下ろしました",
+  logTempDrop: (from, to) => `→ 気温が${from}℃から${to}℃に下がりました`,
+  logTempRise: (from, to) => `→ 気温が${from}℃から${to}℃に上がりました`,
+  logCapacityDrop: (from, to) => `→ 抱えられる水蒸気の量が${from}g/m³から${to}g/m³に減りました`,
+  logCapacityRise: (from, to) => `→ 抱えられる水蒸気の量が${from}g/m³から${to}g/m³に増えました`,
+  logCondensationStart: "→ 水蒸気を抱えきれなくなり、水滴になりました",
+  logCondensationEnd: "→ 水蒸気の量が抱えられる量を下回り、水滴が消えました",
+  logCondensationMore: "→ 抱えきれない水蒸気の量が増え、水滴が増えました",
+  logCondensationLess: "→ 抱えきれない水蒸気の量が減り、水滴も減りました",
+  logCondensationStillRoom: "→ まだ水蒸気を抱えられるので、水滴は発生していません",
 };
 
 // 気温(℃)と飽和水蒸気量(g/m³)の対応表（教科書の値と照合済み）
@@ -154,6 +169,79 @@ function updateGauges(height) {
   });
 }
 
+const CHANGE_LOG_MIN_HEIGHT_DELTA = 3; // これ未満の高さ変化はログに残さない
+const CHANGE_LOG_STEP_DELAY = 350; // ms（CLAUDE.mdの0.3〜0.4秒間隔）
+const CHANGE_LOG_MAX_ENTRIES = 40;
+
+function isNearZero(value) {
+  return value <= 0.05;
+}
+
+// ドラッグ前後の高さから、気温→飽和水蒸気量→結露、という因果の連鎖をテキスト化する
+function buildHeightChangeLog(beforeHeight, afterHeight) {
+  if (Math.abs(afterHeight - beforeHeight) < CHANGE_LOG_MIN_HEIGHT_DELTA) {
+    return null;
+  }
+
+  const beforeTemp = INITIAL_TEMP - beforeHeight * LAPSE_RATE;
+  const afterTemp = INITIAL_TEMP - afterHeight * LAPSE_RATE;
+  const beforeCapacity = saturationVaporAmount(beforeTemp);
+  const afterCapacity = saturationVaporAmount(afterTemp);
+  const beforeExcess = Math.max(0, HELD_VAPOR - beforeCapacity);
+  const afterExcess = Math.max(0, HELD_VAPOR - afterCapacity);
+  const rising = afterHeight > beforeHeight;
+
+  const lines = [rising ? MESSAGES.logLifted : MESSAGES.logLowered];
+
+  lines.push(
+    rising
+      ? MESSAGES.logTempDrop(beforeTemp.toFixed(1), afterTemp.toFixed(1))
+      : MESSAGES.logTempRise(beforeTemp.toFixed(1), afterTemp.toFixed(1))
+  );
+  lines.push(
+    rising
+      ? MESSAGES.logCapacityDrop(beforeCapacity.toFixed(1), afterCapacity.toFixed(1))
+      : MESSAGES.logCapacityRise(beforeCapacity.toFixed(1), afterCapacity.toFixed(1))
+  );
+
+  if (isNearZero(beforeExcess) && !isNearZero(afterExcess)) {
+    lines.push(MESSAGES.logCondensationStart);
+  } else if (!isNearZero(beforeExcess) && isNearZero(afterExcess)) {
+    lines.push(MESSAGES.logCondensationEnd);
+  } else if (afterExcess > beforeExcess) {
+    lines.push(MESSAGES.logCondensationMore);
+  } else if (afterExcess < beforeExcess) {
+    lines.push(MESSAGES.logCondensationLess);
+  } else if (isNearZero(afterExcess)) {
+    lines.push(MESSAGES.logCondensationStillRoom);
+  }
+
+  return lines;
+}
+
+function appendLogLine(text) {
+  const li = document.createElement("li");
+  li.textContent = text;
+  changeLogList.appendChild(li);
+  while (changeLogList.children.length > CHANGE_LOG_MAX_ENTRIES) {
+    changeLogList.removeChild(changeLogList.firstChild);
+  }
+  changeLogList.scrollTop = changeLogList.scrollHeight;
+}
+
+function appendLogCascade(lines) {
+  lines.forEach((line, index) => {
+    setTimeout(() => appendLogLine(line), index * CHANGE_LOG_STEP_DELAY);
+  });
+}
+
+function logHeightChange(beforeHeight, afterHeight) {
+  const lines = buildHeightChangeLog(beforeHeight, afterHeight);
+  if (lines) {
+    appendLogCascade(lines);
+  }
+}
+
 // 山の頂点（yが最小の点）を「山の位置」として使う（SVG側の図形がそのままデータになる）
 const MOUNTAIN_CENTERS = Array.from(document.querySelectorAll(".mountains polygon")).map((polygon) => {
   const points = polygon
@@ -177,6 +265,7 @@ function heightFromMountainProximity(x, y) {
 let mode = "normal"; // "normal" | "experiment"
 let currentHeight = 0;
 let dragOffset = null;
+let heightAtDragStart = 0;
 let leverDragStart = null;
 
 function setMode(nextMode) {
@@ -215,6 +304,7 @@ airMass.addEventListener("pointerdown", (event) => {
     dx: svgPoint.x - parseFloat(airMass.getAttribute("cx")),
     dy: svgPoint.y - parseFloat(airMass.getAttribute("cy")),
   };
+  heightAtDragStart = currentHeight;
 });
 
 airMass.addEventListener("pointermove", (event) => {
@@ -231,6 +321,9 @@ airMass.addEventListener("pointermove", (event) => {
 function endDrag(event) {
   if (airMass.hasPointerCapture(event.pointerId)) {
     airMass.releasePointerCapture(event.pointerId);
+  }
+  if (dragOffset) {
+    logHeightChange(heightAtDragStart, currentHeight);
   }
   dragOffset = null;
 }
@@ -258,6 +351,9 @@ heightLever.addEventListener("pointermove", (event) => {
 function endLeverDrag(event) {
   if (heightLever.hasPointerCapture(event.pointerId)) {
     heightLever.releasePointerCapture(event.pointerId);
+  }
+  if (leverDragStart) {
+    logHeightChange(leverDragStart.height, currentHeight);
   }
   leverDragStart = null;
 }
