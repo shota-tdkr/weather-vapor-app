@@ -300,17 +300,17 @@ function logHeightChange(beforeHeight, afterHeight) {
   }
 }
 
-// 山の頂点（yが最小の点）を「山の位置」として使う（SVG側の図形がそのままデータになる）
-const MOUNTAIN_CENTERS = Array.from(document.querySelectorAll(".mountains polygon")).map((polygon) => {
-  const points = polygon
-    .getAttribute("points")
-    .trim()
-    .split(/\s+/)
-    .map((pair) => pair.split(",").map(Number));
-  return points.reduce((peak, [x, y]) => (y < peak.y ? { x, y } : peak), { x: points[0][0], y: Infinity });
-});
-// 山は1つの前提（design.md参照）。複数になったら「最も近い山」を選ぶ処理に変える必要がある
-const MOUNTAIN_PEAK = MOUNTAIN_CENTERS[0];
+// 山の輪郭の点データ（SVG側の図形をそのまま使う）。山は1つの前提（design.md参照）
+const MOUNTAIN_POINTS = document
+  .querySelector(".mountains polygon")
+  .getAttribute("points")
+  .trim()
+  .split(/\s+/)
+  .map((pair) => {
+    const [x, y] = pair.split(",").map(Number);
+    return { x, y };
+  });
+const MOUNTAIN_PEAK = MOUNTAIN_POINTS.reduce((peak, p) => (p.y < peak.y ? p : peak), MOUNTAIN_POINTS[0]);
 
 // 通常モードでの○の見た目の起点（=山から最も遠い状態）。index.html側の初期配置をそのまま使う
 const FAR_POINT = {
@@ -318,17 +318,53 @@ const FAR_POINT = {
   y: parseFloat(airMass.getAttribute("cy")),
 };
 
+// FAR_POINTに近い側の裾（山頂ではない頂点のうち近い方）。○がどちら側から
+// 近づいてくるかを表す
+const MOUNTAIN_FOOT = MOUNTAIN_POINTS.filter((p) => p !== MOUNTAIN_PEAK).reduce((closest, p) => {
+  const d = Math.hypot(p.x - FAR_POINT.x, p.y - FAR_POINT.y);
+  const dClosest = Math.hypot(closest.x - FAR_POINT.x, closest.y - FAR_POINT.y);
+  return d < dClosest ? p : closest;
+});
+
+function lerp(a, b, t) {
+  return a + (b - a) * t;
+}
+
+// 斜面（MOUNTAIN_FOOT→MOUNTAIN_PEAK）のうち、y = FAR_POINT.y となる点。
+// ○が水平に流れてきて、初めて斜面にぶつかる高さの地点として使う
+const APPROACH_POINT = {
+  x: lerp(MOUNTAIN_FOOT.x, MOUNTAIN_PEAK.x, (FAR_POINT.y - MOUNTAIN_FOOT.y) / (MOUNTAIN_PEAK.y - MOUNTAIN_FOOT.y)),
+  y: FAR_POINT.y,
+};
+
+// 全体の移動距離のうち「水平に流れてくる区間」が占める割合。
+// 見た目の速さが区間の境目で急変しないよう、距離の比で区切る
+const APPROACH_DISTANCE = Math.hypot(APPROACH_POINT.x - FAR_POINT.x, APPROACH_POINT.y - FAR_POINT.y);
+const CLIMB_DISTANCE = Math.hypot(MOUNTAIN_PEAK.x - APPROACH_POINT.x, MOUNTAIN_PEAK.y - APPROACH_POINT.y);
+const APPROACH_RATIO = APPROACH_DISTANCE / (APPROACH_DISTANCE + CLIMB_DISTANCE);
+
 function heightFromDistance(distance) {
   if (distance >= MOUNTAIN_INFLUENCE_RADIUS) return 0;
   return MOUNTAIN_MAX_HEIGHT * (1 - distance / MOUNTAIN_INFLUENCE_RADIUS);
 }
 
-// 通常モード用: 距離が0（山頂）に近づくほど、○がFAR_POINTから山頂へ向かって
-// 直線移動しているように見せる。○自体はドラッグせず、この関数だけが位置を決める
+// 通常モード用の○の見た目の位置。現実の地形性上昇と同じく、
+// ①水平に山へ近づく → ②斜面にぶつかってから斜面沿いに登る、の2段階で表現する
+// （斜め一直線に山頂へ向かうと、風に流されて山に登るという現象として不自然に見えるため）
 function positionAirMassForDistance(distance) {
-  const t = 1 - clamp(distance / MOUNTAIN_INFLUENCE_RADIUS, 0, 1);
-  airMass.setAttribute("cx", FAR_POINT.x + t * (MOUNTAIN_PEAK.x - FAR_POINT.x));
-  airMass.setAttribute("cy", FAR_POINT.y + t * (MOUNTAIN_PEAK.y - FAR_POINT.y));
+  const t = 1 - clamp(distance / MOUNTAIN_INFLUENCE_RADIUS, 0, 1); // 0=遠い, 1=山頂
+  const point =
+    t <= APPROACH_RATIO
+      ? {
+          x: lerp(FAR_POINT.x, APPROACH_POINT.x, t / APPROACH_RATIO),
+          y: lerp(FAR_POINT.y, APPROACH_POINT.y, t / APPROACH_RATIO),
+        }
+      : {
+          x: lerp(APPROACH_POINT.x, MOUNTAIN_PEAK.x, (t - APPROACH_RATIO) / (1 - APPROACH_RATIO)),
+          y: lerp(APPROACH_POINT.y, MOUNTAIN_PEAK.y, (t - APPROACH_RATIO) / (1 - APPROACH_RATIO)),
+        };
+  airMass.setAttribute("cx", point.x);
+  airMass.setAttribute("cy", point.y);
 }
 
 let mode = "normal"; // "normal" | "experiment"
