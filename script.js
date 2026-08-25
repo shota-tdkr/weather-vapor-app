@@ -184,6 +184,9 @@ function updateGauges(height) {
   leverHandle.setAttribute("cy", GAUGE_TRACK_TOP + GAUGE_TRACK_HEIGHT - leverRatio * GAUGE_TRACK_HEIGHT);
 
   // 保有水蒸気量が飽和水蒸気量を超えた分だけ、コップの水滴を1つずつ増やす
+  // TODO(季節スライダー実装時): design.mdの想定では、コップは「今持ち上げている空気塊」ではなく
+  // 「季節で決まる周囲の気温・水蒸気量」に反応する独立した小道具。季節スライダーができたら、
+  // ここのHELD_VAPOR/capacityを季節ベースの値に差し替える（コップ表面温度8℃との比較に切り替える）
   const excess = Math.max(0, HELD_VAPOR - capacity);
   droplets.forEach((droplet, index) => {
     const threshold = (HELD_VAPOR * (index + 1)) / droplets.length;
