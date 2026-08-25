@@ -125,6 +125,20 @@ function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
 }
 
+// 値(value)を「0からmaxまでを均等にstepCount段階に分けたとき、何段階目まで表示するか」に
+// 変換する汎用ロジック。コップの水滴のように「あふれ量に応じて複数の見た目を段階的に見せる」
+// 演出はこの先も増える見込み（design.md想定の雲の演出など）なので、水滴専用にせず独立した
+// 関数にしている。保証する性質は次の2つ:
+// ・value > 0 なら必ず1段階目(index === 0)は表示される（あふれ始めた瞬間に何も見えない、を防ぐ）
+// ・最後の段階(index === stepCount - 1)はvalue === maxでちょうど表示される
+//   （しきい値をmaxより大きい範囲まで等分すると、最大値でも最後の段階に届かなくなるため）
+function isStepVisible(value, max, stepCount, index) {
+  if (value <= 0 || stepCount <= 0) return false;
+  if (stepCount === 1) return true;
+  const threshold = (max * index) / (stepCount - 1);
+  return value >= threshold;
+}
+
 function saturationVaporAmount(temp) {
   const table = SATURATION_TABLE;
   if (temp <= table[0].temp) {
@@ -208,17 +222,14 @@ function updateGauges(height) {
   leverHandle.setAttribute("cy", GAUGE_TRACK_TOP + GAUGE_TRACK_HEIGHT - leverRatio * GAUGE_TRACK_HEIGHT);
 
   // 保有水蒸気量が飽和水蒸気量を超えた分だけ、コップの水滴を1つずつ増やす。
-  // ログは「あふれ始めたら水滴が現れる」と説明するため、あふれ量が0より大きい間は
-  // 必ず1個目が見える必要がある（しきい値0=あふれた瞬間に表示）。しきい値は
-  // MAX_EXCESS（実際に到達しうるあふれ量の上限）を等分し、最後の水滴もMAX_EXCESSで
-  // ちょうど到達できるようにする
+  // 段階の割り当てはisStepVisible()に委譲する（あふれ量が0より大きければ必ず1個目が
+  // 見える／最後の水滴もMAX_EXCESS＝実際に到達しうるあふれ量の上限でちょうど出る、を保証）
   // TODO(季節スライダー実装時): design.mdの想定では、コップは「今持ち上げている空気塊」ではなく
   // 「季節で決まる周囲の気温・水蒸気量」に反応する独立した小道具。季節スライダーができたら、
   // ここのHELD_VAPOR/capacityを季節ベースの値に差し替える（コップ表面温度8℃との比較に切り替える）
   const excess = Math.max(0, HELD_VAPOR - capacity);
   droplets.forEach((droplet, index) => {
-    const threshold = (MAX_EXCESS * index) / (droplets.length - 1);
-    droplet.classList.toggle("visible", excess > 0 && excess >= threshold);
+    droplet.classList.toggle("visible", isStepVisible(excess, MAX_EXCESS, droplets.length, index));
   });
 }
 
