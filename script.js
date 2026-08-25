@@ -51,7 +51,7 @@ const MESSAGES = {
   legendAirMass: "○ = 空気の塊。レバー操作にあわせて位置と高さが自動で変わります（直接ドラッグはできません）。",
   legendMountain: "▲ = 山。「山までの距離」を操作しているとき、○が近づくほど自動で高さが上がります。",
   legendNormalMode: "「山までの距離」を操作するとき: レバーを上げるほど山に近づき、高さも自動で上がります。",
-  legendExperimentMode: "「高さ」を操作するとき: ○の位置は固定されたまま、山に関係なく高さだけを直接操作できます。",
+  legendExperimentMode: "「高さ」を操作するとき: ○は横には動かず真上に浮かびます。山に関係なく高さだけを直接操作できます。",
   legendCup: "コップの水滴 = 保有水蒸気量が飽和水蒸気量を超えた分。あふれた量が多いほど、水滴が増えます。",
   // 変化ログ（因果を段階表示するテキスト）。数値を埋め込むため関数にしているが、
   // 文言はすべてここに集約する（コード中に日本語を散らさない）
@@ -367,6 +367,18 @@ function positionAirMassForDistance(distance) {
   airMass.setAttribute("cy", point.y);
 }
 
+// 高さ操作モードで最大まで上げたときの○のy座標（画面上端寄り）
+const HEIGHT_MODE_TOP_Y = 40;
+
+// 高さ操作モード用の○の見た目の位置。x座標はFAR_POINTのまま固定し、
+// 高さに応じて真上に浮かぶだけにする（山に近づくように見せると、
+// 「①山の影響」と「②高さそのものの影響」を切り分けるという狙いが崩れるため）
+function positionAirMassForHeight(height) {
+  const ratio = clamp(height / EXPERIMENT_MAX_HEIGHT, 0, 1);
+  airMass.setAttribute("cx", FAR_POINT.x);
+  airMass.setAttribute("cy", lerp(FAR_POINT.y, HEIGHT_MODE_TOP_Y, ratio));
+}
+
 let mode = "normal"; // "normal" | "experiment"
 let currentHeight = 0;
 let currentDistance = MOUNTAIN_INFLUENCE_RADIUS; // 通常モード: 山までの距離（0=山頂、MOUNTAIN_INFLUENCE_RADIUS=影響なし）
@@ -379,7 +391,10 @@ function setMode(nextMode) {
   modeToggleButton.textContent = isExperiment ? MESSAGES.switchToNormal : MESSAGES.switchToExperiment;
   leverCaptionEl.textContent = isExperiment ? MESSAGES.leverCaptionHeight : MESSAGES.leverCaptionDistance;
   heightLever.setAttribute("aria-label", isExperiment ? MESSAGES.leverAriaHeight : MESSAGES.leverAriaDistance);
-  if (!isExperiment) {
+  if (isExperiment) {
+    // 高さ操作モードに切り替えた瞬間、今の高さに合わせて見た目を再計算する
+    positionAirMassForHeight(currentHeight);
+  } else {
     // 通常モードに戻った瞬間、現在の距離から高さと見た目を再計算する
     currentHeight = heightFromDistance(currentDistance);
     positionAirMassForDistance(currentDistance);
@@ -418,6 +433,7 @@ heightLever.addEventListener("pointermove", (event) => {
   if (mode === "experiment") {
     const deltaHeight = deltaY * (EXPERIMENT_MAX_HEIGHT / GAUGE_TRACK_HEIGHT);
     currentHeight = clamp(leverDragStart.value + deltaHeight, 0, EXPERIMENT_MAX_HEIGHT);
+    positionAirMassForHeight(currentHeight);
   } else {
     // 通常モード: レバーは「山までの距離」。上に動かすほど距離が縮む＝山に近づく
     const deltaDistance = deltaY * (MOUNTAIN_INFLUENCE_RADIUS / GAUGE_TRACK_HEIGHT);
