@@ -90,6 +90,11 @@ const VAPOR_MAX = 32;
 const GAUGE_TRACK_TOP = 20;
 const GAUGE_TRACK_HEIGHT = 210;
 
+// 舞台（#mapのviewBox）の範囲。○のドラッグをこの内側に収める
+const SCENE_WIDTH = 400;
+const GROUND_Y = 280; // 地面の上端。○がここより下（地面の中）に沈まないようにする
+const AIR_MASS_RADIUS = 22; // index.htmlの#air-massのrと合わせる
+
 // 通常モード: 山への接近で自動的に高さが上がる
 const MOUNTAIN_INFLUENCE_RADIUS = 120; // 山頂からこの距離より遠いと山の影響なし
 const MOUNTAIN_MAX_HEIGHT = 120; // 山頂での高さ
@@ -352,8 +357,9 @@ airMass.addEventListener("pointerdown", (event) => {
 airMass.addEventListener("pointermove", (event) => {
   if (!dragOffset) return;
   const svgPoint = toSvgPoint(map, event.clientX, event.clientY);
-  const cx = svgPoint.x - dragOffset.dx;
-  const cy = svgPoint.y - dragOffset.dy;
+  // 指がSVGの外まで飛び出しても、○が舞台の外に消えないよう範囲内に収める
+  const cx = clamp(svgPoint.x - dragOffset.dx, AIR_MASS_RADIUS, SCENE_WIDTH - AIR_MASS_RADIUS);
+  const cy = clamp(svgPoint.y - dragOffset.dy, AIR_MASS_RADIUS, GROUND_Y - AIR_MASS_RADIUS);
   airMass.setAttribute("cx", cx);
   airMass.setAttribute("cy", cy);
   currentHeight = heightFromMountainProximity(cx, cy);
