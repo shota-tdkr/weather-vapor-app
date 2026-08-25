@@ -69,6 +69,12 @@ body {
   flex: 1 1 360px;
 }
 
+/* PC表示ではただの透明なラッパー（レイアウトに影響させない）。
+   スマホ用の折り返し先はメディアクエリ側で上書きする */
+.results-panel {
+  display: contents;
+}
+
 .gauges {
   display: flex;
   gap: 2rem;
@@ -390,4 +396,69 @@ body {
   outline: 3px solid #1c2541;
   outline-offset: 4px;
   border-radius: 8px;
+}
+
+/* ==== スマホ表示（横幅が狭い画面）====
+   通常の縦積みだと、レバーを操作した結果（温度・水蒸気量・水滴）を見るのに
+   スクロールが必要になる。山・空気塊・レバー自体は縮小せず、結果パネル
+   （gauges＋cup-panel）だけを最上部に固定して、スクロールなしで常に
+   見えるようにする */
+@media (max-width: 700px) {
+  .app-layout {
+    gap: 1rem;
+  }
+
+  .results-panel {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: flex-start;
+    gap: 0.3rem 1rem;
+    order: -1;
+    width: 100%;
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    margin-bottom: 0.4rem;
+    padding: 0.4rem 0.6rem 0.3rem;
+    background: #eaeaea;
+    border-bottom: 2px solid #1c2541;
+  }
+
+  .results-panel .gauges {
+    gap: 0.8rem;
+  }
+
+  .results-panel .gauge svg {
+    height: 56px;
+    width: auto;
+  }
+
+  .results-panel .gauge,
+  .results-panel .cup-panel {
+    gap: 0.15rem;
+    font-size: 0.7rem;
+  }
+
+  /* デフォルトのp要素の上下マージンがそのまま残ると、狭い結果パネルの中で
+     グラフィック本体より文字の余白の方が高さを占めてしまうため、ここだけ詰める */
+  .results-panel p {
+    margin: 0;
+    line-height: 1.3;
+  }
+
+  .results-panel .cup {
+    width: 40px;
+    height: 56px;
+  }
+
+  .results-panel .cup-caption {
+    display: none;
+  }
+
+  .results-panel .tip-button {
+    width: 1.3rem;
+    height: 1.3rem;
+    font-size: 0.7rem;
+  }
 }

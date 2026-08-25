@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>天気のたね</title>
   <!-- ?v=N はキャッシュ対策。style.css/script.js を編集したら両方の番号を1つ上げる -->
-  <link rel="stylesheet" href="./style.css?v=17">
+  <link rel="stylesheet" href="./style.css?v=18">
 </head>
 <body>
   <h1 class="app-title">天気のたね</h1>
@@ -45,46 +45,51 @@
       <p id="lever-caption" class="lever-caption"></p>
     </div>
 
-    <div class="gauges">
-      <div class="gauge">
-        <svg class="thermometer" viewBox="0 0 40 280" xmlns="http://www.w3.org/2000/svg" aria-label="温度計">
-          <rect class="gauge-track" x="12" y="20" width="16" height="208" rx="8" />
-          <rect id="thermometer-fill" class="gauge-fill" x="12" y="228" width="16" height="0" rx="8" />
-          <circle class="gauge-fill" cx="20" cy="248" r="20" />
-        </svg>
-        <p>温度: <span id="temp-value">5.0</span>℃</p>
+    <!-- gauges/cup-panelをまとめるラッパー。PC表示ではdisplay:contentsにして
+         レイアウトに影響させず、スマホ表示でのみこのまとまりごとsticky表示する
+         （狭い画面ではレバー操作の結果を見るのにスクロールが必要、という指摘への対応） -->
+    <div class="results-panel">
+      <div class="gauges">
+        <div class="gauge">
+          <svg class="thermometer" viewBox="0 0 40 280" xmlns="http://www.w3.org/2000/svg" aria-label="温度計">
+            <rect class="gauge-track" x="12" y="20" width="16" height="208" rx="8" />
+            <rect id="thermometer-fill" class="gauge-fill" x="12" y="228" width="16" height="0" rx="8" />
+            <circle class="gauge-fill" cx="20" cy="248" r="20" />
+          </svg>
+          <p>温度: <span id="temp-value">5.0</span>℃</p>
+        </div>
+
+        <div class="gauge">
+          <svg class="vapor-gauge" viewBox="0 0 60 280" xmlns="http://www.w3.org/2000/svg" aria-label="水蒸気ゲージ">
+            <rect class="gauge-track" x="15" y="20" width="30" height="210" />
+            <rect id="capacity-fill" class="gauge-fill" x="15" y="230" width="30" height="0" />
+            <line id="held-marker" class="gauge-marker" x1="8" x2="52" y1="230" y2="230" />
+          </svg>
+          <p>保有水蒸気量: <span id="held-value">6.8</span> g/m³</p>
+          <p>飽和水蒸気量: <span id="capacity-value">6.8</span> g/m³</p>
+        </div>
       </div>
 
-      <div class="gauge">
-        <svg class="vapor-gauge" viewBox="0 0 60 280" xmlns="http://www.w3.org/2000/svg" aria-label="水蒸気ゲージ">
-          <rect class="gauge-track" x="15" y="20" width="30" height="210" />
-          <rect id="capacity-fill" class="gauge-fill" x="15" y="230" width="30" height="0" />
-          <line id="held-marker" class="gauge-marker" x1="8" x2="52" y1="230" y2="230" />
+      <div class="cup-panel">
+        <svg class="cup" viewBox="0 0 100 140" xmlns="http://www.w3.org/2000/svg" aria-label="コップ（抱えきれなかった水蒸気が水滴になります）">
+          <polygon class="cup-liquid" points="29,55 71,55 62,115 38,115" />
+          <polygon class="cup-outline" points="25,25 75,25 62,115 38,115" />
+          <!-- 液体（下側）に近い順に並べる。この並び順のままJS側で「あふれた量が少ないほど先に表示」する -->
+          <circle class="droplet" cx="18" cy="102" r="4" />
+          <circle class="droplet" cx="82" cy="105" r="4" />
+          <circle class="droplet" cx="15" cy="85" r="4" />
+          <circle class="droplet" cx="85" cy="90" r="4" />
+          <circle class="droplet" cx="17" cy="65" r="4" />
+          <circle class="droplet" cx="83" cy="70" r="4" />
+          <circle class="droplet" cx="20" cy="45" r="4" />
+          <circle class="droplet" cx="80" cy="50" r="4" />
         </svg>
-        <p>保有水蒸気量: <span id="held-value">6.8</span> g/m³</p>
-        <p>飽和水蒸気量: <span id="capacity-value">6.8</span> g/m³</p>
+        <div class="cup-caption-row">
+          <p class="cup-caption">コップについた水滴<br>（抱えきれなかった水蒸気量）</p>
+          <button id="cup-tip-button" class="tip-button" type="button" aria-expanded="false">？</button>
+        </div>
+        <p id="cup-tip-text" class="tip-text" hidden></p>
       </div>
-    </div>
-
-    <div class="cup-panel">
-      <svg class="cup" viewBox="0 0 100 140" xmlns="http://www.w3.org/2000/svg" aria-label="コップ（抱えきれなかった水蒸気が水滴になります）">
-        <polygon class="cup-liquid" points="29,55 71,55 62,115 38,115" />
-        <polygon class="cup-outline" points="25,25 75,25 62,115 38,115" />
-        <!-- 液体（下側）に近い順に並べる。この並び順のままJS側で「あふれた量が少ないほど先に表示」する -->
-        <circle class="droplet" cx="18" cy="102" r="4" />
-        <circle class="droplet" cx="82" cy="105" r="4" />
-        <circle class="droplet" cx="15" cy="85" r="4" />
-        <circle class="droplet" cx="85" cy="90" r="4" />
-        <circle class="droplet" cx="17" cy="65" r="4" />
-        <circle class="droplet" cx="83" cy="70" r="4" />
-        <circle class="droplet" cx="20" cy="45" r="4" />
-        <circle class="droplet" cx="80" cy="50" r="4" />
-      </svg>
-      <div class="cup-caption-row">
-        <p class="cup-caption">コップについた水滴<br>（抱えきれなかった水蒸気量）</p>
-        <button id="cup-tip-button" class="tip-button" type="button" aria-expanded="false">？</button>
-      </div>
-      <p id="cup-tip-text" class="tip-text" hidden></p>
     </div>
   </main>
 
@@ -107,6 +112,6 @@
     </div>
   </div>
 
-  <script src="./script.js?v=17"></script>
+  <script src="./script.js?v=18"></script>
 </body>
 </html>
