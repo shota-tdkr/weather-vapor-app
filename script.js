@@ -29,6 +29,8 @@ const tutorialTextEl = document.getElementById("tutorial-text");
 const tutorialNextButton = document.getElementById("tutorial-next");
 const tutorialSkipButton = document.getElementById("tutorial-skip");
 const tutorialReplayButton = document.getElementById("tutorial-replay");
+const cupTipButton = document.getElementById("cup-tip-button");
+const cupTipText = document.getElementById("cup-tip-text");
 
 const MESSAGES = {
   // 「実験モード」という言葉が伝わらなかった非同期テストのフィードバックを受けて、
@@ -53,6 +55,10 @@ const MESSAGES = {
   legendNormalMode: "「山までの距離」を操作するとき: レバーを上げるほど山に近づき、高さも自動で上がります。",
   legendExperimentMode: "「高さ」を操作するとき: ○は横には動かず真上に浮かびます。山に関係なく高さだけを直接操作できます。",
   legendCup: "コップの水滴 = 保有水蒸気量が飽和水蒸気量を超えた分。あふれた量が多いほど、水滴が増えます。",
+  // コップ横の「？」アイコン（Tips）。実生活との接続を一言で示す
+  cupTip:
+    "夏に冷たい飲み物を入れたコップの外側が濡れるのと同じ現象です。空気中の水蒸気が、冷たいものに触れて水滴になっています。",
+  cupTipButtonLabel: "豆知識を見る",
   // 変化ログ（因果を段階表示するテキスト）。数値を埋め込むため関数にしているが、
   // 文言はすべてここに集約する（コード中に日本語を散らさない）
   changeLogTitle: "変化ログ",
@@ -62,11 +68,13 @@ const MESSAGES = {
   logTempRise: (from, to) => `→ 気温が${from}℃から${to}℃に上がりました`,
   logCapacityDrop: (from, to) => `→ 抱えられる水蒸気の量が${from}g/m³から${to}g/m³に減りました`,
   logCapacityRise: (from, to) => `→ 抱えられる水蒸気の量が${from}g/m³から${to}g/m³に増えました`,
-  logCondensationStart: "→ 水蒸気を抱えきれなくなり、水滴になりました",
-  logCondensationEnd: "→ 水蒸気の量が抱えられる量を下回り、水滴が消えました",
-  logCondensationMore: "→ 抱えきれない水蒸気の量が増え、水滴が増えました",
-  logCondensationLess: "→ 抱えきれない水蒸気の量が減り、水滴も減りました",
-  logCondensationStillRoom: "→ まだ水蒸気を抱えられるので、水滴は発生していません",
+  // 「高さを操作しただけでコップが濡れるのは因果が飛躍している」という指摘を受け、
+  // コップの水滴だと明示する文言にしている（コップの水滴は空気塊の状態をそのまま映しているため）
+  logCondensationStart: "→ 水蒸気を抱えきれなくなり、コップに水滴が現れました",
+  logCondensationEnd: "→ 水蒸気の量が抱えられる量を下回り、コップの水滴が消えました",
+  logCondensationMore: "→ 抱えきれない水蒸気の量が増え、コップの水滴が増えました",
+  logCondensationLess: "→ 抱えきれない水蒸気の量が減り、コップの水滴も減りました",
+  logCondensationStillRoom: "→ まだ水蒸気を抱えられるので、コップに水滴はついていません",
   // チュートリアル（初回起動時のみ、吹き出しガイド）
   tutorialStepLabel: (current, total) => `${current} / ${total}`,
   tutorialStep1: "右のレバーを動かして、空気の塊（○）を山（▲）に近づけてみよう",
@@ -553,6 +561,15 @@ tutorialNextButton.addEventListener("click", () => {
 tutorialSkipButton.addEventListener("click", endTutorial);
 tutorialReplayButton.addEventListener("click", startTutorial);
 tutorialReplayButton.textContent = MESSAGES.tutorialReplay;
+
+// コップ横の「？」（Tips）: タップで実生活接続の一言を開閉する
+cupTipText.textContent = MESSAGES.cupTip;
+cupTipButton.setAttribute("aria-label", MESSAGES.cupTipButtonLabel);
+cupTipButton.addEventListener("click", () => {
+  const nowHidden = !cupTipText.hidden;
+  cupTipText.hidden = nowHidden;
+  cupTipButton.setAttribute("aria-expanded", String(!nowHidden));
+});
 
 window.addEventListener("resize", () => {
   if (!tutorialOverlay.hidden && tutorialHighlightedEl) {
