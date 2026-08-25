@@ -61,7 +61,6 @@ body {
   width: 100%;
   max-width: 480px;
   flex: 1 1 360px;
-  touch-action: none;
 }
 
 .gauges {
@@ -98,21 +97,12 @@ body {
   fill: #1c2541;
 }
 
+/* ○はレバー操作の結果として自動で動く表示専用のオブジェクト（直接ドラッグはしない） */
 #air-mass {
   fill: #eaeaea;
   stroke: #1c2541;
   stroke-width: 2;
-  cursor: grab;
-  touch-action: none;
-}
-
-#air-mass:active {
-  cursor: grabbing;
-}
-
-#air-mass.disabled {
-  cursor: default;
-  opacity: 0.6;
+  pointer-events: none;
 }
 
 .lift-arrow {
@@ -167,11 +157,6 @@ body {
 
 .lever-handle:active {
   cursor: grabbing;
-}
-
-.lever-handle.disabled {
-  cursor: default;
-  opacity: 0.4;
 }
 
 .gauge-track {

@@ -1,4 +1,3 @@
-const map = document.getElementById("map");
 const airMass = document.getElementById("air-mass");
 const thermometerFill = document.getElementById("thermometer-fill");
 const capacityFill = document.getElementById("capacity-fill");
@@ -13,6 +12,7 @@ const legendEl = document.getElementById("legend");
 const heightLever = document.getElementById("height-lever");
 const leverFill = document.getElementById("lever-fill");
 const leverHandle = document.getElementById("lever-handle");
+const leverCaptionEl = document.getElementById("lever-caption");
 const droplets = Array.from(document.querySelectorAll(".droplet"));
 const liftArrows = Array.from(document.querySelectorAll(".lift-arrow"));
 const LIFT_ARROW_OFFSETS = [
@@ -33,16 +33,25 @@ const tutorialReplayButton = document.getElementById("tutorial-replay");
 const MESSAGES = {
   // 「実験モード」という言葉が伝わらなかった非同期テストのフィードバックを受けて、
   // 「モード」という抽象的な言葉をやめ、押した後に何ができるかを直接言うラベルにしている
-  modeNormal: "○は地図で動かせます",
-  modeExperiment: "○は高さだけ動かせます",
-  switchToExperiment: "高さだけ動かせるようにする",
-  switchToNormal: "地図で動かせるようにする",
+  //
+  // 2026-08-25: ○の自由な2Dドラッグを廃止し、通常モードも高さ操作モードと同じ
+  // レバーUIを共用する方式に変更。レバーが操作する対象が「山までの距離」か
+  // 「高さ」かの違いだけが残るようにした（design.md参照）。○自体は直接
+  // ドラッグできず、レバー操作の結果として位置・高さが自動で決まる
+  modeNormal: "レバーで「山までの距離」を操作できます",
+  modeExperiment: "レバーで「高さ」を直接操作できます",
+  switchToExperiment: "高さを直接操作できるようにする",
+  switchToNormal: "山までの距離を操作できるようにする",
+  leverCaptionDistance: "距離レバー（山までの距離を操作）",
+  leverCaptionHeight: "高さレバー（高さを操作）",
+  leverAriaDistance: "距離レバー（山までの距離を操作します）",
+  leverAriaHeight: "高さレバー（高さを直接操作します）",
   // 以下、デバッグ・テスト用の凡例（初回起動時の正式なチュートリアルとは別物、常時表示の補足）
   legendTitle: "記号の説明（デバッグ用）",
-  legendAirMass: "○ = 空気の塊。「地図で動かせる」状態のときは、地図上をドラッグして動かせます。",
-  legendMountain: "▲ = 山。○を近づけると自動で高さが上がります（地図で動かせるときのみ）。",
-  legendNormalMode: "○が地図で動くとき: 自由にドラッグできます。山に近づくと自動で高さが上がります。",
-  legendExperimentMode: "○が高さだけ動くとき: ○は固定されたまま、右の「高さレバー」をドラッグすると、山に関係なく高さだけを操作できます。",
+  legendAirMass: "○ = 空気の塊。レバー操作にあわせて位置と高さが自動で変わります（直接ドラッグはできません）。",
+  legendMountain: "▲ = 山。「山までの距離」を操作しているとき、○が近づくほど自動で高さが上がります。",
+  legendNormalMode: "「山までの距離」を操作するとき: レバーを上げるほど山に近づき、高さも自動で上がります。",
+  legendExperimentMode: "「高さ」を操作するとき: ○の位置は固定されたまま、山に関係なく高さだけを直接操作できます。",
   legendCup: "コップの水滴 = 保有水蒸気量が飽和水蒸気量を超えた分。あふれた量が多いほど、水滴が増えます。",
   // 変化ログ（因果を段階表示するテキスト）。数値を埋め込むため関数にしているが、
   // 文言はすべてここに集約する（コード中に日本語を散らさない）
@@ -60,8 +69,8 @@ const MESSAGES = {
   logCondensationStillRoom: "→ まだ水蒸気を抱えられるので、水滴は発生していません",
   // チュートリアル（初回起動時のみ、吹き出しガイド）
   tutorialStepLabel: (current, total) => `${current} / ${total}`,
-  tutorialStep1: "○（空気の塊）をドラッグして、山（▲）に近づけてみよう",
-  tutorialStep2: "このボタンを押すと「高さだけ動かせる」状態になります。高さレバーだけで高さを操作できます",
+  tutorialStep1: "右のレバーを動かして、空気の塊（○）を山（▲）に近づけてみよう",
+  tutorialStep2: "このボタンを押すと、レバーで「高さ」を直接操作できるようになります",
   tutorialStep3: "下の変化ログに、なぜそうなったかが表示されます",
   tutorialNext: "次へ",
   tutorialFinish: "はじめる",
@@ -89,11 +98,6 @@ const TEMP_MAX = 35;
 const VAPOR_MAX = 32;
 const GAUGE_TRACK_TOP = 20;
 const GAUGE_TRACK_HEIGHT = 210;
-
-// 舞台（#mapのviewBox）の範囲。○のドラッグをこの内側に収める
-const SCENE_WIDTH = 400;
-const GROUND_Y = 280; // 地面の上端。○がここより下（地面の中）に沈まないようにする
-const AIR_MASS_RADIUS = 22; // index.htmlの#air-massのrと合わせる
 
 // 通常モード: 山への接近で自動的に高さが上がる
 const MOUNTAIN_INFLUENCE_RADIUS = 120; // 山頂からこの距離より遠いと山の影響なし
@@ -179,7 +183,11 @@ function updateGauges(height) {
   heldMarker.setAttribute("y1", heldY);
   heldMarker.setAttribute("y2", heldY);
 
-  const leverRatio = clamp(height / EXPERIMENT_MAX_HEIGHT, 0, 1);
+  // レバーの見た目は、今そのレバーが操作している値の最大値を基準に正規化する
+  // （通常モードの最大高さ120と高さ操作モードの最大値250が違うため、ここを分けないと
+  // 指の移動量とレバーの見た目がズレる）
+  const leverMax = mode === "experiment" ? EXPERIMENT_MAX_HEIGHT : MOUNTAIN_MAX_HEIGHT;
+  const leverRatio = clamp(height / leverMax, 0, 1);
   setGaugeFill(leverFill, leverRatio);
   leverHandle.setAttribute("cy", GAUGE_TRACK_TOP + GAUGE_TRACK_HEIGHT - leverRatio * GAUGE_TRACK_HEIGHT);
 
@@ -301,21 +309,31 @@ const MOUNTAIN_CENTERS = Array.from(document.querySelectorAll(".mountains polygo
     .map((pair) => pair.split(",").map(Number));
   return points.reduce((peak, [x, y]) => (y < peak.y ? { x, y } : peak), { x: points[0][0], y: Infinity });
 });
+// 山は1つの前提（design.md参照）。複数になったら「最も近い山」を選ぶ処理に変える必要がある
+const MOUNTAIN_PEAK = MOUNTAIN_CENTERS[0];
 
-function heightFromMountainProximity(x, y) {
-  let nearest = Infinity;
-  for (const mountain of MOUNTAIN_CENTERS) {
-    const distance = Math.hypot(x - mountain.x, y - mountain.y);
-    if (distance < nearest) nearest = distance;
-  }
-  if (nearest >= MOUNTAIN_INFLUENCE_RADIUS) return 0;
-  return MOUNTAIN_MAX_HEIGHT * (1 - nearest / MOUNTAIN_INFLUENCE_RADIUS);
+// 通常モードでの○の見た目の起点（=山から最も遠い状態）。index.html側の初期配置をそのまま使う
+const FAR_POINT = {
+  x: parseFloat(airMass.getAttribute("cx")),
+  y: parseFloat(airMass.getAttribute("cy")),
+};
+
+function heightFromDistance(distance) {
+  if (distance >= MOUNTAIN_INFLUENCE_RADIUS) return 0;
+  return MOUNTAIN_MAX_HEIGHT * (1 - distance / MOUNTAIN_INFLUENCE_RADIUS);
+}
+
+// 通常モード用: 距離が0（山頂）に近づくほど、○がFAR_POINTから山頂へ向かって
+// 直線移動しているように見せる。○自体はドラッグせず、この関数だけが位置を決める
+function positionAirMassForDistance(distance) {
+  const t = 1 - clamp(distance / MOUNTAIN_INFLUENCE_RADIUS, 0, 1);
+  airMass.setAttribute("cx", FAR_POINT.x + t * (MOUNTAIN_PEAK.x - FAR_POINT.x));
+  airMass.setAttribute("cy", FAR_POINT.y + t * (MOUNTAIN_PEAK.y - FAR_POINT.y));
 }
 
 let mode = "normal"; // "normal" | "experiment"
 let currentHeight = 0;
-let dragOffset = null;
-let heightAtDragStart = 0;
+let currentDistance = MOUNTAIN_INFLUENCE_RADIUS; // 通常モード: 山までの距離（0=山頂、MOUNTAIN_INFLUENCE_RADIUS=影響なし）
 let leverDragStart = null;
 
 function setMode(nextMode) {
@@ -323,13 +341,12 @@ function setMode(nextMode) {
   const isExperiment = mode === "experiment";
   modeLabelEl.textContent = isExperiment ? MESSAGES.modeExperiment : MESSAGES.modeNormal;
   modeToggleButton.textContent = isExperiment ? MESSAGES.switchToNormal : MESSAGES.switchToExperiment;
-  airMass.classList.toggle("disabled", isExperiment);
-  leverHandle.classList.toggle("disabled", !isExperiment);
+  leverCaptionEl.textContent = isExperiment ? MESSAGES.leverCaptionHeight : MESSAGES.leverCaptionDistance;
+  heightLever.setAttribute("aria-label", isExperiment ? MESSAGES.leverAriaHeight : MESSAGES.leverAriaDistance);
   if (!isExperiment) {
-    // 通常モードに戻った瞬間、現在位置（実験モード中は動いていない）から高さを自動で再計算する
-    const cx = parseFloat(airMass.getAttribute("cx"));
-    const cy = parseFloat(airMass.getAttribute("cy"));
-    currentHeight = heightFromMountainProximity(cx, cy);
+    // 通常モードに戻った瞬間、現在の距離から高さと見た目を再計算する
+    currentHeight = heightFromDistance(currentDistance);
+    positionAirMassForDistance(currentDistance);
     updateGauges(currentHeight);
   }
 }
@@ -345,57 +362,33 @@ function toSvgPoint(svgEl, clientX, clientY) {
   return point.matrixTransform(svgEl.getScreenCTM().inverse());
 }
 
-// 通常モード: ○を地図上でドラッグ。山への近さで高さが自動で決まる
-airMass.addEventListener("pointerdown", (event) => {
-  if (mode !== "normal") return;
-  airMass.setPointerCapture(event.pointerId);
-  const svgPoint = toSvgPoint(map, event.clientX, event.clientY);
-  dragOffset = {
-    dx: svgPoint.x - parseFloat(airMass.getAttribute("cx")),
-    dy: svgPoint.y - parseFloat(airMass.getAttribute("cy")),
-  };
-  heightAtDragStart = currentHeight;
-});
-
-airMass.addEventListener("pointermove", (event) => {
-  if (!dragOffset) return;
-  const svgPoint = toSvgPoint(map, event.clientX, event.clientY);
-  // 指がSVGの外まで飛び出しても、○が舞台の外に消えないよう範囲内に収める
-  const cx = clamp(svgPoint.x - dragOffset.dx, AIR_MASS_RADIUS, SCENE_WIDTH - AIR_MASS_RADIUS);
-  const cy = clamp(svgPoint.y - dragOffset.dy, AIR_MASS_RADIUS, GROUND_Y - AIR_MASS_RADIUS);
-  airMass.setAttribute("cx", cx);
-  airMass.setAttribute("cy", cy);
-  currentHeight = heightFromMountainProximity(cx, cy);
-  updateGauges(currentHeight);
-});
-
-function endDrag(event) {
-  if (airMass.hasPointerCapture(event.pointerId)) {
-    airMass.releasePointerCapture(event.pointerId);
-  }
-  if (dragOffset) {
-    logHeightChange(heightAtDragStart, currentHeight);
-  }
-  dragOffset = null;
-}
-
-airMass.addEventListener("pointerup", endDrag);
-airMass.addEventListener("pointercancel", endDrag);
-
-// 実験モード: ○は動かさず、高さレバーのドラッグだけが高さを変える
+// レバーは両モード共通のUI。通常モードでは「山までの距離」、高さ操作モードでは
+// 「高さ」を操作する。○自体は直接ドラッグしない（レバー操作の結果として自動で動く）
 heightLever.addEventListener("pointerdown", (event) => {
-  if (mode !== "experiment") return;
   heightLever.setPointerCapture(event.pointerId);
   const svgPoint = toSvgPoint(heightLever, event.clientX, event.clientY);
-  leverDragStart = { svgY: svgPoint.y, height: currentHeight };
+  leverDragStart = {
+    svgY: svgPoint.y,
+    value: mode === "experiment" ? currentHeight : currentDistance,
+    heightBefore: currentHeight,
+  };
 });
 
 heightLever.addEventListener("pointermove", (event) => {
   if (!leverDragStart) return;
   const svgPoint = toSvgPoint(heightLever, event.clientX, event.clientY);
-  const deltaY = leverDragStart.svgY - svgPoint.y; // 上に動かすほど高さが増える
-  const deltaHeight = deltaY * (EXPERIMENT_MAX_HEIGHT / GAUGE_TRACK_HEIGHT);
-  currentHeight = clamp(leverDragStart.height + deltaHeight, 0, EXPERIMENT_MAX_HEIGHT);
+  const deltaY = leverDragStart.svgY - svgPoint.y; // 上に動かすほど「より持ち上げる/より近づく」
+
+  if (mode === "experiment") {
+    const deltaHeight = deltaY * (EXPERIMENT_MAX_HEIGHT / GAUGE_TRACK_HEIGHT);
+    currentHeight = clamp(leverDragStart.value + deltaHeight, 0, EXPERIMENT_MAX_HEIGHT);
+  } else {
+    // 通常モード: レバーは「山までの距離」。上に動かすほど距離が縮む＝山に近づく
+    const deltaDistance = deltaY * (MOUNTAIN_INFLUENCE_RADIUS / GAUGE_TRACK_HEIGHT);
+    currentDistance = clamp(leverDragStart.value - deltaDistance, 0, MOUNTAIN_INFLUENCE_RADIUS);
+    currentHeight = heightFromDistance(currentDistance);
+    positionAirMassForDistance(currentDistance);
+  }
   updateGauges(currentHeight);
 });
 
@@ -404,7 +397,7 @@ function endLeverDrag(event) {
     heightLever.releasePointerCapture(event.pointerId);
   }
   if (leverDragStart) {
-    logHeightChange(leverDragStart.height, currentHeight);
+    logHeightChange(leverDragStart.heightBefore, currentHeight);
   }
   leverDragStart = null;
 }
@@ -432,7 +425,7 @@ setMode("normal");
 const TUTORIAL_STORAGE_KEY = "weather-app-tutorial-seen";
 
 const TUTORIAL_STEPS = [
-  { target: airMass, text: MESSAGES.tutorialStep1 },
+  { target: heightLever, text: MESSAGES.tutorialStep1 },
   { target: modeToggleButton, text: MESSAGES.tutorialStep2 },
   { target: changeLogEl, text: MESSAGES.tutorialStep3 },
 ];
