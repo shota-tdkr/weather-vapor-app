@@ -48,8 +48,8 @@ const MESSAGES = {
   leverCaptionHeight: "高さレバー（高さを操作）",
   leverAriaDistance: "距離レバー（山までの距離を操作します）",
   leverAriaHeight: "高さレバー（高さを直接操作します）",
-  // 以下、デバッグ・テスト用の凡例（初回起動時の正式なチュートリアルとは別物、常時表示の補足）
-  legendTitle: "記号の説明（デバッグ用）",
+  // 以下、常時表示の補足用の凡例（初回起動時の正式なチュートリアルとは別物）
+  legendTitle: "記号の説明",
   legendAirMass: "○ = 空気の塊。レバー操作にあわせて位置と高さが自動で変わります（直接ドラッグはできません）。",
   legendMountain: "▲ = 山。「山までの距離」を操作しているとき、○が近づくほど自動で高さが上がります。",
   legendNormalMode: "「山までの距離」を操作するとき: レバーを上げるほど山に近づき、高さも自動で上がります。",
@@ -100,6 +100,10 @@ const SATURATION_TABLE = [
 const LAPSE_RATE = 0.08; // ℃ / 高さ1単位あたりの上昇による気温低下
 const INITIAL_TEMP = 5;
 const HELD_VAPOR = 6.8;
+const MIN_CAPACITY = 0.1; // saturationVaporAmount()が返す最小値（低温側の外挿がマイナスにならないための下限）
+// あふれ量(HELD_VAPOR - capacity)が実際に到達しうる最大値。capacityの下限がMIN_CAPACITYのため、
+// あふれ量の上限もHELD_VAPORとMIN_CAPACITYの差で頭打ちになる（水滴の個数のしきい値はこれを基準にする）
+const MAX_EXCESS = HELD_VAPOR - MIN_CAPACITY;
 
 const TEMP_MIN = -15;
 const TEMP_MAX = 35;
@@ -126,7 +130,7 @@ function saturationVaporAmount(temp) {
   if (temp <= table[0].temp) {
     const [a, b] = table;
     const slope = (b.value - a.value) / (b.temp - a.temp);
-    return Math.max(0.1, a.value + slope * (temp - a.temp));
+    return Math.max(MIN_CAPACITY, a.value + slope * (temp - a.temp));
   }
   if (temp >= table[table.length - 1].temp) {
     const a = table[table.length - 2];
@@ -178,7 +182,11 @@ function updateGauges(height) {
   }
   previousHeight = height;
 
-  heightValueEl.textContent = Math.round((height / EXPERIMENT_MAX_HEIGHT) * HEIGHT_DISPLAY_SCALE);
+  // 高さ表示の分母は、そのモードで実際に到達できる最大高さに合わせる
+  // （常にEXPERIMENT_MAX_HEIGHTを基準にすると、通常モードでは山頂にいても48までしか
+  // 表示上進まず、「/ 100」という分母に到達できなくなる）
+  const heightDisplayMax = mode === "experiment" ? EXPERIMENT_MAX_HEIGHT : MOUNTAIN_MAX_HEIGHT;
+  heightValueEl.textContent = Math.round((height / heightDisplayMax) * HEIGHT_DISPLAY_SCALE);
   tempValueEl.textContent = temp.toFixed(1);
   heldValueEl.textContent = HELD_VAPOR.toFixed(1);
   capacityValueEl.textContent = capacity.toFixed(1);
@@ -191,22 +199,26 @@ function updateGauges(height) {
   heldMarker.setAttribute("y1", heldY);
   heldMarker.setAttribute("y2", heldY);
 
-  // レバーの見た目は、今そのレバーが操作している値の最大値を基準に正規化する
-  // （通常モードの最大高さ120と高さ操作モードの最大値250が違うため、ここを分けないと
-  // 指の移動量とレバーの見た目がズレる）
-  const leverMax = mode === "experiment" ? EXPERIMENT_MAX_HEIGHT : MOUNTAIN_MAX_HEIGHT;
-  const leverRatio = clamp(height / leverMax, 0, 1);
+  // レバーの見た目は、モードによらず常にEXPERIMENT_MAX_HEIGHT（到達しうる高さの絶対上限）を
+  // 基準に正規化する。通常モードの最大高さ(120)を基準にすると、モード切替の瞬間に
+  // 同じ高さのままレバーの位置だけが動いてしまう（高さが変わっていないのに操作した
+  // ように見えるジャンプになる）ため、両モード共通の基準にしてジャンプを起こさない
+  const leverRatio = clamp(height / EXPERIMENT_MAX_HEIGHT, 0, 1);
   setGaugeFill(leverFill, leverRatio);
   leverHandle.setAttribute("cy", GAUGE_TRACK_TOP + GAUGE_TRACK_HEIGHT - leverRatio * GAUGE_TRACK_HEIGHT);
 
-  // 保有水蒸気量が飽和水蒸気量を超えた分だけ、コップの水滴を1つずつ増やす
+  // 保有水蒸気量が飽和水蒸気量を超えた分だけ、コップの水滴を1つずつ増やす。
+  // ログは「あふれ始めたら水滴が現れる」と説明するため、あふれ量が0より大きい間は
+  // 必ず1個目が見える必要がある（しきい値0=あふれた瞬間に表示）。しきい値は
+  // MAX_EXCESS（実際に到達しうるあふれ量の上限）を等分し、最後の水滴もMAX_EXCESSで
+  // ちょうど到達できるようにする
   // TODO(季節スライダー実装時): design.mdの想定では、コップは「今持ち上げている空気塊」ではなく
   // 「季節で決まる周囲の気温・水蒸気量」に反応する独立した小道具。季節スライダーができたら、
   // ここのHELD_VAPOR/capacityを季節ベースの値に差し替える（コップ表面温度8℃との比較に切り替える）
   const excess = Math.max(0, HELD_VAPOR - capacity);
   droplets.forEach((droplet, index) => {
-    const threshold = (HELD_VAPOR * (index + 1)) / droplets.length;
-    droplet.classList.toggle("visible", excess >= threshold);
+    const threshold = (MAX_EXCESS * index) / (droplets.length - 1);
+    droplet.classList.toggle("visible", excess > 0 && excess >= threshold);
   });
 }
 
@@ -400,8 +412,11 @@ function setMode(nextMode) {
   leverCaptionEl.textContent = isExperiment ? MESSAGES.leverCaptionHeight : MESSAGES.leverCaptionDistance;
   heightLever.setAttribute("aria-label", isExperiment ? MESSAGES.leverAriaHeight : MESSAGES.leverAriaDistance);
   if (isExperiment) {
-    // 高さ操作モードに切り替えた瞬間、今の高さに合わせて見た目を再計算する
+    // 高さ操作モードに切り替えた瞬間、今の高さに合わせて見た目を再計算する。
+    // 高さ表示の分母がモードごとに違うため、ここでも数値表示を更新しないと
+    // 次に操作するまで通常モード基準の古い数値が残ってしまう
     positionAirMassForHeight(currentHeight);
+    updateGauges(currentHeight);
   } else {
     // 通常モードに戻った瞬間、現在の距離から高さと見た目を再計算する。
     // ○の位置は瞬時にジャンプするので、水滴のフェード（0.3秒）だけが
