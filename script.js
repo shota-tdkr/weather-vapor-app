@@ -395,7 +395,10 @@ function setMode(nextMode) {
     // 高さ操作モードに切り替えた瞬間、今の高さに合わせて見た目を再計算する
     positionAirMassForHeight(currentHeight);
   } else {
-    // 通常モードに戻った瞬間、現在の距離から高さと見た目を再計算する
+    // 通常モードに戻った瞬間、現在の距離から高さと見た目を再計算する。
+    // ○の位置は瞬時にジャンプするので、水滴のフェード（0.3秒）だけが
+    // 取り残されて「離れているのに水滴が残っている」ように見えないよう、
+    // この更新だけはトランジションなしで即座に反映する
     currentHeight = heightFromDistance(currentDistance);
     positionAirMassForDistance(currentDistance);
     updateGauges(currentHeight);
@@ -423,6 +426,9 @@ heightLever.addEventListener("pointerdown", (event) => {
     value: mode === "experiment" ? currentHeight : currentDistance,
     heightBefore: currentHeight,
   };
+  // ドラッグ中は○の位置を指に瞬時に追従させたいので、トランジションを止める
+  // （モード切り替え時のジャンプだけをなめらかにするためのトランジションのため）
+  airMass.classList.add("dragging");
 });
 
 heightLever.addEventListener("pointermove", (event) => {
@@ -452,6 +458,7 @@ function endLeverDrag(event) {
     logHeightChange(leverDragStart.heightBefore, currentHeight);
   }
   leverDragStart = null;
+  airMass.classList.remove("dragging");
 }
 
 heightLever.addEventListener("pointerup", endLeverDrag);
