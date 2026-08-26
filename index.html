@@ -5,16 +5,20 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>天気のたね</title>
   <!-- ?v=N はキャッシュ対策。style.css/script.js を編集したら両方の番号を1つ上げる -->
-  <link rel="stylesheet" href="./style.css?v=21">
+  <link rel="stylesheet" href="./style.css?v=22">
 </head>
 <body>
   <h1 class="app-title">天気のたね</h1>
+  <p class="app-subtitle">この空気は、どのくらい上げると雲ができるだろう？</p>
   <div class="toolbar">
     <p>高さ: <span id="height-value">0</span> / 100</p>
     <button id="tutorial-replay" class="tutorial-replay" type="button"></button>
   </div>
   <main class="app-layout">
     <svg id="map" viewBox="0 0 400 320" xmlns="http://www.w3.org/2000/svg" aria-label="山と空気の塊">
+      <!-- 空（雲＝○の白いfillが背景と見分けられるよう、薄い青系の色を敷く） -->
+      <rect class="sky" x="0" y="0" width="400" height="320" />
+
       <!-- 地面 -->
       <rect class="land" x="0" y="280" width="400" height="10" />
 
@@ -123,6 +127,6 @@
     </div>
   </div>
 
-  <script src="./script.js?v=21"></script>
+  <script src="./script.js?v=22"></script>
 </body>
 </html>

@@ -12,6 +12,13 @@ body {
   font-weight: bold;
 }
 
+/* 「おもちゃ」ではなく「実験」だと伝えるための一言（画面の目的を示す） */
+.app-subtitle {
+  margin: -0.4rem 0 1.2rem;
+  font-size: 0.95rem;
+  opacity: 0.8;
+}
+
 .toolbar {
   display: flex;
   flex-wrap: wrap;
@@ -83,6 +90,12 @@ body {
 
 .vapor-gauge {
   width: 70px;
+}
+
+/* 空の背景色。○の白いfill（雲）が#eaeaea背景だとほぼ見分けられなかったため追加
+   （CLAUDE.mdの「色は4色まで」に対する例外として、空の色を1色追加している） */
+.sky {
+  fill: #a3cfeb;
 }
 
 .land {

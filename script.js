@@ -112,9 +112,11 @@ const INITIAL_TEMP = 15;
 const HELD_VAPOR = 9.4;
 const MIN_CAPACITY = 0.1; // saturationVaporAmount()が返す最小値（低温側の外挿がマイナスにならないための下限）
 
-const TEMP_MIN = -15;
-const TEMP_MAX = 35;
-const VAPOR_MAX = 32;
+// 実際に到達する範囲（温度15℃〜-5℃、飽和水蒸気量2.8〜12.8g/m³）に対して
+// 余裕を持たせつつ、可動域の大半を使うように調整した値（レビュー指摘対応）
+const TEMP_MIN = -10;
+const TEMP_MAX = 20;
+const VAPOR_MAX = 16;
 const GAUGE_TRACK_TOP = 20;
 const GAUGE_TRACK_HEIGHT = 210;
 
@@ -435,24 +437,43 @@ function xForDistance(distance) {
     : lerp(APPROACH_POINT.x, MOUNTAIN_PEAK.x, (t - APPROACH_RATIO) / (1 - APPROACH_RATIO));
 }
 
+// 距離レバーだけで決まる「地形に沿ったy座標」。xForDistanceと同じtを使い、
+// ①水平に山へ近づく → ②斜面にぶつかってから斜面沿いに登る、という同じ2段階の
+// 軌道をyにも描かせる（xとyを別々のtから計算すると、斜面をなぞらずに斜め一直線で
+// 山頂へ向かう不自然な動きになってしまうため、xと必ず同じtを使う）
+function terrainY(distance) {
+  const t = 1 - clamp(distance / MOUNTAIN_INFLUENCE_RADIUS, 0, 1); // 0=遠い, 1=山頂
+  return t <= APPROACH_RATIO
+    ? lerp(FAR_POINT.y, APPROACH_POINT.y, t / APPROACH_RATIO)
+    : lerp(APPROACH_POINT.y, MOUNTAIN_PEAK.y, (t - APPROACH_RATIO) / (1 - APPROACH_RATIO));
+}
+
 // 高さレバーを最大まで上げたときの○のy座標（画面上端寄り）
 const SKY_TOP_Y = 40;
 
-// ○のy座標（高さレバーだけで決まる）。高さ0〜MOUNTAIN_MAX_HEIGHTは地面〜山頂の高さに、
-// それ以上（山より高く持ち上げた分）は山頂〜上空にそれぞれ対応させる。距離レバーで
-// 山頂まで近づいたとき（高さ=MOUNTAIN_MAX_HEIGHT）に、ちょうど山頂の高さと一致する
-function yForHeight(height) {
-  if (height <= MOUNTAIN_MAX_HEIGHT) {
-    return lerp(FAR_POINT.y, MOUNTAIN_PEAK.y, height / MOUNTAIN_MAX_HEIGHT);
+// ○のy座標。distance/heightの2本のレバーが独立にx・yを決める構造のままだと、
+// 距離レバーで山頂近くまで寄せたあとに高さレバーだけを下げると、○が山の内部に
+// めり込んでしまう（xは山の中腹、yだけが地面近くまで下がるため）。それを防ぐため、
+// 「距離が決める地形の高さ(heightFromDistance)」を下限として扱い、
+// ・高さがその下限以下のときは、地形に沿った位置(terrainY)にとどめる
+// ・下限を超えた分だけ、terrainYからSKY_TOP_Yに向けてさらに持ち上げる（この上乗せ分は
+//   高さレバー自身の可動域と同じ線形の伸び方でよい）
+function yForPosition(distance, height) {
+  const baselineHeight = heightFromDistance(distance);
+  const baselineY = terrainY(distance);
+  if (height <= baselineHeight) {
+    return baselineY;
   }
-  const t = (height - MOUNTAIN_MAX_HEIGHT) / (EXPERIMENT_MAX_HEIGHT - MOUNTAIN_MAX_HEIGHT);
-  return lerp(MOUNTAIN_PEAK.y, SKY_TOP_Y, t);
+  const maxExtraHeight = EXPERIMENT_MAX_HEIGHT - baselineHeight;
+  const t = (height - baselineHeight) / maxExtraHeight;
+  return lerp(baselineY, SKY_TOP_Y, t);
 }
 
-// ○の見た目の位置は、距離レバー(x)と高さレバー(y)がそれぞれ独立に決める
+// ○の見た目の位置。xは距離レバーだけで決まり、yは上のyForPositionが地形との
+// 衝突を避けながら決める
 function positionAirMass(distance, height) {
   airMass.setAttribute("cx", xForDistance(distance));
-  airMass.setAttribute("cy", yForHeight(height));
+  airMass.setAttribute("cy", yForPosition(distance, height));
 }
 
 let currentHeight = 0;
