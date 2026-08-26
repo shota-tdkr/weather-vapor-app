@@ -112,13 +112,17 @@ body {
 /* ○はレバー操作の結果として自動で動く表示専用のオブジェクト（直接ドラッグはしない）。
    モード切り替え時の位置ジャンプを、水滴のフェード（0.3s）と足並みを揃えてなめらかに
    見せるためのトランジション。ドラッグ中は#air-mass.draggingで無効化し、指に瞬時に
-   追従させる（レバー操作の1:1追従が崩れないようにするため） */
+   追従させる（レバー操作の1:1追従が崩れないようにするため）。
+   fillは白固定にし、あふれ量に応じたfill-opacity（JS側で設定、初期値0）だけで
+   雲の濃さを表現する。opacity 0のときは背景色(#eaeaea)がそのまま透けて見え、
+   これまでどおり輪郭線だけの「曇っていない」見た目になる */
 #air-mass {
-  fill: #eaeaea;
+  fill: #ffffff;
+  fill-opacity: 0;
   stroke: #1c2541;
   stroke-width: 2;
   pointer-events: none;
-  transition: cx 0.3s ease, cy 0.3s ease;
+  transition: cx 0.3s ease, cy 0.3s ease, fill-opacity 0.3s ease;
 }
 
 #air-mass.dragging {

@@ -54,6 +54,7 @@ const MESSAGES = {
   legendMountain: "▲ = 山。「山までの距離」を操作しているとき、○が近づくほど自動で高さが上がります。",
   legendNormalMode: "「山までの距離」を操作するとき: レバーを上げるほど山に近づき、高さも自動で上がります。",
   legendExperimentMode: "「高さ」を操作するとき: ○は横には動かず真上に浮かびます。山に関係なく高さだけを直接操作できます。",
+  legendCloud: "○が白く曇る = 空気塊自体が、抱えきれなくなった水蒸気の量に応じて白くなります（雲ができる様子）。",
   legendCup: "コップの水滴 = 保有水蒸気量が飽和水蒸気量を超えた分。あふれた量が多いほど、水滴が増えます。",
   // コップ横の「？」アイコン（Tips）。実生活との接続を一言で示す
   cupTip:
@@ -75,6 +76,13 @@ const MESSAGES = {
   logCondensationMore: "→ 抱えきれない水蒸気の量が増え、コップの水滴が増えました",
   logCondensationLess: "→ 抱えきれない水蒸気の量が減り、コップの水滴も減りました",
   logCondensationStillRoom: "→ まだ水蒸気を抱えられるので、コップに水滴はついていません",
+  // 雲（空気塊自体が白く曇る演出）用の変化ログ。コップの水滴と違い、あふれた
+  // その場（空気塊）で起きる現象なので、コップより先に表示する
+  logCloudStart: "→ 水蒸気を抱えきれなくなり、雲ができました",
+  logCloudEnd: "→ 水蒸気の量が抱えられる量を下回り、雲が消えました",
+  // あふれ量が最大に達したときだけの一言。「雲ができる=雨が降る」という誤った
+  // 因果を避けるため、雨を降らせる演出は追加せず、条件付きの説明に留める
+  logRainHint: "→ さらに条件が重なると、雲の粒が成長して雨になります",
   // チュートリアル（初回起動時のみ、吹き出しガイド）
   tutorialStepLabel: (current, total) => `${current} / ${total}`,
   tutorialStep1: "右のレバーを動かして、空気の塊（○）を山（▲）に近づけてみよう",
@@ -236,9 +244,17 @@ function updateGauges(height) {
   // 「季節で決まる周囲の気温・水蒸気量」に反応する独立した小道具。季節スライダーができたら、
   // ここのHELD_VAPOR/capacityを季節ベースの値に差し替える（コップ表面温度8℃との比較に切り替える）
   const excess = Math.max(0, HELD_VAPOR - capacity);
+  let visibleDropletCount = 0;
   droplets.forEach((droplet, index) => {
-    droplet.classList.toggle("visible", isStepVisible(excess, MAX_EXCESS, droplets.length, index));
+    const visible = isStepVisible(excess, MAX_EXCESS, droplets.length, index);
+    droplet.classList.toggle("visible", visible);
+    if (visible) visibleDropletCount += 1;
   });
+
+  // 雲: 新しい図形を増やさず、○自体をあふれ量に応じて段階的に白く塗る（fill-opacityを
+  // 上げる）。水滴と同じ「何段階目まで見えているか」を使うことで、コップの水滴が
+  // 1つ増えるたびに○も1段階ずつ曇る、という対応関係になる
+  airMass.setAttribute("fill-opacity", visibleDropletCount / droplets.length);
 }
 
 const CHANGE_LOG_MIN_HEIGHT_DELTA = 3; // これ未満の高さ変化はログに残さない
@@ -276,6 +292,14 @@ function buildHeightChangeLog(beforeHeight, afterHeight) {
       : MESSAGES.logCapacityRise(beforeCapacity.toFixed(1), afterCapacity.toFixed(1))
   );
 
+  // 雲（空気塊自体が曇る演出）は、あふれが起きたその場で直接起こる現象なので、
+  // コップの水滴（間接的な言い換え）より先に表示する
+  if (isNearZero(beforeExcess) && !isNearZero(afterExcess)) {
+    lines.push(MESSAGES.logCloudStart);
+  } else if (!isNearZero(beforeExcess) && isNearZero(afterExcess)) {
+    lines.push(MESSAGES.logCloudEnd);
+  }
+
   if (isNearZero(beforeExcess) && !isNearZero(afterExcess)) {
     lines.push(MESSAGES.logCondensationStart);
   } else if (!isNearZero(beforeExcess) && isNearZero(afterExcess)) {
@@ -286,6 +310,14 @@ function buildHeightChangeLog(beforeHeight, afterHeight) {
     lines.push(MESSAGES.logCondensationLess);
   } else if (isNearZero(afterExcess)) {
     lines.push(MESSAGES.logCondensationStillRoom);
+  }
+
+  // あふれ量が最大に達した瞬間だけ、雨との関係を一言添える（「雲ができる=必ず雨」という
+  // 誤った因果を避けるため、雨を降らせる演出そのものは追加しない。条件付きの一文のみ）
+  const wasAtMaxExcess = beforeExcess >= MAX_EXCESS;
+  const isAtMaxExcess = afterExcess >= MAX_EXCESS;
+  if (isAtMaxExcess && !wasAtMaxExcess) {
+    lines.push(MESSAGES.logRainHint);
   }
 
   return lines;
@@ -514,6 +546,7 @@ function renderLegend() {
       <li>${MESSAGES.legendMountain}</li>
       <li>${MESSAGES.legendNormalMode}</li>
       <li>${MESSAGES.legendExperimentMode}</li>
+      <li>${MESSAGES.legendCloud}</li>
       <li>${MESSAGES.legendCup}</li>
     </ul>
   `;
