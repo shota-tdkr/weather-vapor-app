@@ -98,12 +98,13 @@ const SATURATION_TABLE = [
 ];
 
 const LAPSE_RATE = 0.08; // ℃ / 高さ1単位あたりの上昇による気温低下
-const INITIAL_TEMP = 5;
-const HELD_VAPOR = 6.8;
+// 高さ0時点で「保有水蒸気量が飽和水蒸気量に対して明確に余裕がある」状態から始め、
+// レバーを動かすうちに余裕→あふれ、の両方が画面に現れるようにする。
+// HELD_VAPOR=9.4は教科書の対応表の「10℃の飽和水蒸気量」と同じ値（＝露点10℃相当）を
+// 採用しており、INITIAL_TEMP=15℃・湿度約73%という不自然でない組み合わせになる
+const INITIAL_TEMP = 15;
+const HELD_VAPOR = 9.4;
 const MIN_CAPACITY = 0.1; // saturationVaporAmount()が返す最小値（低温側の外挿がマイナスにならないための下限）
-// あふれ量(HELD_VAPOR - capacity)が実際に到達しうる最大値。capacityの下限がMIN_CAPACITYのため、
-// あふれ量の上限もHELD_VAPORとMIN_CAPACITYの差で頭打ちになる（水滴の個数のしきい値はこれを基準にする）
-const MAX_EXCESS = HELD_VAPOR - MIN_CAPACITY;
 
 const TEMP_MIN = -15;
 const TEMP_MAX = 35;
@@ -162,6 +163,13 @@ function saturationVaporAmount(temp) {
   }
   return 0;
 }
+
+// あふれ量(HELD_VAPOR - capacity)が実際に到達しうる最大値。高さ操作モードの上限
+// (EXPERIMENT_MAX_HEIGHT、両モードのうちより高くまで上がれる方)まで上昇したときの
+// 気温・飽和水蒸気量から求める。MIN_CAPACITYの下限に必ず到達するとは限らないため
+// （INITIAL_TEMP/HELD_VAPORの組み合わせ次第で最低気温が0℃を下回らないこともある）、
+// 決め打ちにせずsaturationVaporAmount()から逆算する。水滴の個数のしきい値の基準
+const MAX_EXCESS = HELD_VAPOR - saturationVaporAmount(INITIAL_TEMP - LAPSE_RATE * EXPERIMENT_MAX_HEIGHT);
 
 function setGaugeFill(rect, ratio) {
   const height = clamp(ratio, 0, 1) * GAUGE_TRACK_HEIGHT;
