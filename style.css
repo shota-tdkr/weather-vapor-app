@@ -22,22 +22,6 @@ body {
   font-size: 0.9rem;
 }
 
-.mode-toggle {
-  font-family: inherit;
-  font-size: 0.95rem;
-  padding: 0.5rem 1.2rem;
-  border: 2px solid #1c2541;
-  border-radius: 6px;
-  background: #eaeaea;
-  color: #1c2541;
-  cursor: pointer;
-}
-
-.mode-toggle:hover {
-  background: #1c2541;
-  color: #eaeaea;
-}
-
 .tutorial-replay {
   font-family: inherit;
   font-size: 0.85rem;
@@ -152,6 +136,15 @@ body {
   }
 }
 
+/* 距離レバー・高さレバーを横に並べる箱。中身の.leverは1本ずつの見た目 */
+.levers {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1.5rem;
+  flex: 0 0 auto;
+}
+
 .lever {
   display: flex;
   flex-direction: column;
@@ -165,7 +158,7 @@ body {
   line-height: 1.3;
 }
 
-.height-lever {
+.lever-svg {
   width: 50px;
   height: 260px;
   touch-action: none;
