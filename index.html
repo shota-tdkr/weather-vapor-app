@@ -5,14 +5,45 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>天気のたね</title>
   <!-- ?v=N はキャッシュ対策。style.css/script.js を編集したら両方の番号を1つ上げる -->
-  <link rel="stylesheet" href="./style.css?v=28">
+  <link rel="stylesheet" href="./style.css?v=29">
 </head>
 <body>
   <h1 class="app-title">天気のたね</h1>
   <p class="app-subtitle">この空気は、どのくらい上げると雲ができるだろう？</p>
   <div class="toolbar">
     <button id="tutorial-replay" class="tutorial-replay" type="button"></button>
+    <button id="quiz-start-button" class="quiz-start-button" type="button"></button>
   </div>
+
+  <!-- お題モード: 「レバーを動かすだけ」という弟さんの反応を受けて追加。予想してから
+       確かめる形式にすることで、レバー操作に理由と結果を与える。タイトル画面は作らず、
+       常時表示のボタンから始める（開いた瞬間に触れる状態を維持するため。design.md
+       「お題モード」参照） -->
+  <div id="quiz-panel" class="quiz-panel" hidden>
+    <div class="quiz-header">
+      <p id="quiz-progress" class="quiz-progress"></p>
+      <button id="quiz-exit-button" class="quiz-exit-button" type="button"></button>
+    </div>
+    <p id="quiz-question" class="quiz-question"></p>
+    <div id="quiz-choices" class="quiz-choices"></div>
+    <p id="quiz-hint" class="quiz-hint"></p>
+    <div id="quiz-reveal" class="quiz-reveal" hidden>
+      <p id="quiz-your-guess" class="quiz-your-guess"></p>
+      <p id="quiz-reveal-text" class="quiz-reveal-text"></p>
+      <button id="quiz-next-button" class="quiz-next-button" type="button"></button>
+    </div>
+  </div>
+
+  <div id="quiz-summary" class="quiz-summary" hidden>
+    <p id="quiz-summary-title" class="quiz-summary-title"></p>
+    <ul id="quiz-summary-list" class="quiz-summary-list"></ul>
+    <p id="quiz-summary-conclusion" class="quiz-summary-conclusion"></p>
+    <div class="quiz-summary-actions">
+      <button id="quiz-restart-button" class="quiz-restart-button" type="button"></button>
+      <button id="quiz-summary-exit-button" class="quiz-exit-button" type="button"></button>
+    </div>
+  </div>
+
   <main class="app-layout">
     <!-- 「読む」計器（温度・水蒸気ゲージ）はマップの中、「触る」レバー（距離・水蒸気の量）
          はマップの外・横向きに置く。場所・向き・色の3つで区別をつけ、凡例に頼らずに
@@ -89,7 +120,7 @@
     <!-- 水蒸気の量スライダー: 距離レバーと同じ「触るもの」の系統（マップ外・横向き・
          全幅）で直下に配置する。4段階で、教科書の対応表の値をそのまま水蒸気の量として
          使う（design.md「水蒸気の量スライダー」参照） -->
-    <div class="levers">
+    <div class="levers" id="vapor-level-panel">
       <p id="vapor-level-caption" class="lever-caption"></p>
       <svg id="vapor-level-lever" class="lever-svg" viewBox="0 0 400 40" xmlns="http://www.w3.org/2000/svg" aria-label="水蒸気の量スライダー">
         <rect class="gauge-track" x="4" y="13" width="392" height="14" rx="7" />
@@ -123,6 +154,6 @@
     </div>
   </div>
 
-  <script src="./script.js?v=28"></script>
+  <script src="./script.js?v=29"></script>
 </body>
 </html>

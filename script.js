@@ -34,6 +34,24 @@ const tutorialTextEl = document.getElementById("tutorial-text");
 const tutorialNextButton = document.getElementById("tutorial-next");
 const tutorialSkipButton = document.getElementById("tutorial-skip");
 const tutorialReplayButton = document.getElementById("tutorial-replay");
+const quizStartButton = document.getElementById("quiz-start-button");
+const quizPanel = document.getElementById("quiz-panel");
+const quizProgressEl = document.getElementById("quiz-progress");
+const quizExitButton = document.getElementById("quiz-exit-button");
+const quizQuestionEl = document.getElementById("quiz-question");
+const quizChoicesEl = document.getElementById("quiz-choices");
+const quizHintEl = document.getElementById("quiz-hint");
+const quizRevealEl = document.getElementById("quiz-reveal");
+const quizYourGuessEl = document.getElementById("quiz-your-guess");
+const quizRevealTextEl = document.getElementById("quiz-reveal-text");
+const quizNextButton = document.getElementById("quiz-next-button");
+const quizSummaryEl = document.getElementById("quiz-summary");
+const quizSummaryTitleEl = document.getElementById("quiz-summary-title");
+const quizSummaryListEl = document.getElementById("quiz-summary-list");
+const quizSummaryConclusionEl = document.getElementById("quiz-summary-conclusion");
+const quizRestartButton = document.getElementById("quiz-restart-button");
+const quizSummaryExitButton = document.getElementById("quiz-summary-exit-button");
+const vaporLevelPanel = document.getElementById("vapor-level-panel");
 
 const MESSAGES = {
   // 「実験モード」という言葉が伝わらなかった非同期テストのフィードバックを受けて、
@@ -109,6 +127,26 @@ const MESSAGES = {
   tutorialFinish: "はじめる",
   tutorialSkip: "スキップ",
   tutorialReplay: "使い方を見る",
+  // お題モード（design.md「お題モード」参照）。「予想してから確かめる」形式にすることで、
+  // レバー操作に理由と結果を与える。「不正解」「間違い」等の否定的な表現は使わず、
+  // 実際の答えと理由だけを見せる
+  quizStartButtonLabel: "お題に挑戦",
+  quizExitButtonLabel: "自由に触る",
+  quizProgress: (current, total) => `お題 ${current} / ${total}`,
+  quizQuestion: "この空気は、どのくらい上げると雲ができるだろう？",
+  quizChoiceLabel: (index, value) => `${["①", "②", "③", "④"][index]}${value}くらい`,
+  quizCheckingHint: "距離レバーを動かして、実際に確かめてみよう",
+  quizYourGuess: (label) => `あなたの予想: ${label}`,
+  quizRevealMatched: "予想どおりでした！",
+  quizRevealText: (actual, heldVapor) =>
+    `実際は${actual}くらいでした。この空気は水蒸気を${heldVapor}g/m³ふくんでいるので、${actual}まで上げると抱えきれなくなります。`,
+  quizNextButtonLabel: "次の問題へ",
+  quizFinishButtonLabel: "まとめを見る",
+  quizSummaryTitle: "4問終わりました",
+  quizSummaryRow: (label, value, actual) => `水蒸気の量が${label}（${value} g/m³）→ ${actual}くらいで雲ができた`,
+  quizSummaryConclusion:
+    "同じ山でも、空気にふくまれる水蒸気の量が違うと、雲ができる高さが変わりましたね。",
+  quizRestartButtonLabel: "もう一度挑戦する",
 };
 
 // 気温(℃)と飽和水蒸気量(g/m³)の対応表（教科書の値と照合済み）
@@ -141,6 +179,25 @@ const VAPOR_LEVELS = [
 const VAPOR_LEVEL_INITIAL_INDEX = 2;
 let vaporLevelIndex = VAPOR_LEVEL_INITIAL_INDEX;
 let currentHeldVapor = VAPOR_LEVELS[vaporLevelIndex].value;
+
+// お題モード: 水蒸気の量の4段階それぞれで1問ずつ、計4問。いきなり極端な値
+// (少ない/多い)から始めず、標準的なもの(やや多い)から入ってばらつかせる順番
+// にしている（design.md「お題モード」参照）。正解の高さはハードコードせず、
+// 実際に雲ができた瞬間のcurrentHeightから毎回算出する（モデルの定数を
+// 変更しても答えがズレない）
+const QUIZ_QUESTIONS = [
+  { vaporLevelIndex: 2 }, // やや多い(9.4) → 25くらい
+  { vaporLevelIndex: 0 }, // 少ない(4.8) → 75くらい
+  { vaporLevelIndex: 3 }, // 多い(11.6) → 9くらい
+  { vaporLevelIndex: 1 }, // やや少ない(6.8) → 50くらい
+];
+const QUIZ_CHOICES = [10, 25, 50, 75];
+
+let quizActive = false;
+let quizQuestionIndex = 0;
+let quizPhase = "choosing"; // "choosing"(予想前) | "checking"(予想後、確認中) | "revealed"(答え合わせ済み)
+let quizSelectedChoice = null;
+let quizResults = [];
 
 // 実際に到達する範囲（温度15℃〜-5℃、飽和水蒸気量2.8〜12.8g/m³）に対して
 // 余裕を持たせつつ、可動域の大半を使うように調整した値（レビュー指摘対応）
@@ -265,6 +322,9 @@ function pulseLiftArrows() {
 }
 
 let previousHeight = 0;
+// 雲が今見えているかどうか。お題モードで「雲ができた瞬間」を検知するために
+// updateGauges()の外から参照する（maybeRevealQuizAnswer()参照）
+let lastCloudVisible = false;
 
 function updateGauges(height) {
   const temp = INITIAL_TEMP - height * LAPSE_RATE;
@@ -324,6 +384,7 @@ function updateGauges(height) {
     airMassCloud.setAttribute("d", CLOUD_PATHS[visibleStepCount - 1]);
   }
   airMassCloud.setAttribute("opacity", visibleStepCount > 0 ? 1 : 0);
+  lastCloudVisible = visibleStepCount > 0;
 }
 
 const CHANGE_LOG_MIN_HEIGHT_DELTA = 3; // これ未満の高さ変化はログに残さない
@@ -602,6 +663,7 @@ bindLeverDrag(distanceLever, {
     currentHeight = heightFromDistance(currentDistance);
     positionAirMass(currentDistance);
     updateGauges(currentHeight);
+    maybeRevealQuizAnswer();
   },
   onEnd: () => {
     if (distanceDragStart) {
@@ -630,9 +692,11 @@ function nearestVaporLevelIndex(svgX) {
   return Math.round(ratio * (VAPOR_LEVELS.length - 1));
 }
 
-function setVaporLevel(index) {
+// force: お題モードが問題ごとに水蒸気の量を強制的に切り替えるために使う
+// （目的の段階が現在値とたまたま同じでも、確実にrender/updateGaugesさせる）
+function setVaporLevel(index, force) {
   const clamped = clamp(index, 0, VAPOR_LEVELS.length - 1);
-  if (clamped === vaporLevelIndex) return;
+  if (!force && clamped === vaporLevelIndex) return;
   vaporLevelIndex = clamped;
   currentHeldVapor = VAPOR_LEVELS[vaporLevelIndex].value;
   currentMaxExcess = computeMaxExcess(currentHeldVapor);
@@ -641,23 +705,165 @@ function setVaporLevel(index) {
 }
 
 // 水蒸気の量スライダー: 触れた位置（pointerdown時も含む）に応じて最も近い段階へ
-// 即座に切り替わる。高さは変えない
+// 即座に切り替わる。高さは変えない。お題モード中は操作不可（quizActive、
+// design.md「お題モード」参照。CSS側でもpointer-events:noneにしているが、
+// 念のためJS側でも二重にガードする）
 let vaporLevelIndexBeforeDrag = null;
 bindLeverDrag(vaporLevelLever, {
   onStart: (svgX) => {
+    if (quizActive) return;
     vaporLevelIndexBeforeDrag = vaporLevelIndex;
     setVaporLevel(nearestVaporLevelIndex(svgX));
   },
   onMove: (svgX) => {
+    if (quizActive) return;
     setVaporLevel(nearestVaporLevelIndex(svgX));
   },
   onEnd: () => {
+    if (quizActive) return;
     if (vaporLevelIndexBeforeDrag !== null && vaporLevelIndexBeforeDrag !== vaporLevelIndex) {
       logVaporLevelChange(vaporLevelIndexBeforeDrag, vaporLevelIndex);
     }
     vaporLevelIndexBeforeDrag = null;
   },
 });
+
+// お題モード ---------------------------------------------------------------
+// 「スライダーを動かすだけ」という弟さんの反応を受けて追加。予想してから
+// 確かめる形式にすることで、レバー操作に理由と結果を与える。タイトル画面は
+// 作らず、常時表示の「お題に挑戦」ボタンから始める（design.md「お題モード」参照）
+
+function setVaporLevelLocked(locked) {
+  vaporLevelPanel.classList.toggle("levers-locked", locked);
+}
+
+function quizChoiceLabel(index) {
+  return MESSAGES.quizChoiceLabel(index, QUIZ_CHOICES[index]);
+}
+
+// 選択肢ボタンの描画とhinttextの更新のみを行う（正解発表はrenderQuizReveal）。
+// phaseに応じてボタンの選択状態・disabledを切り替える
+function renderQuizQuestion() {
+  quizProgressEl.textContent = MESSAGES.quizProgress(quizQuestionIndex + 1, QUIZ_QUESTIONS.length);
+  quizQuestionEl.textContent = MESSAGES.quizQuestion;
+  quizChoicesEl.innerHTML = QUIZ_CHOICES.map((value, index) => {
+    const selected = quizSelectedChoice === index;
+    const disabled = quizPhase !== "choosing";
+    return `<button type="button" class="quiz-choice-button${selected ? " selected" : ""}" data-index="${index}" ${disabled ? "disabled" : ""}>${quizChoiceLabel(index)}</button>`;
+  }).join("");
+  quizHintEl.textContent = quizPhase === "checking" ? MESSAGES.quizCheckingHint : "";
+  quizRevealEl.hidden = true;
+}
+
+function selectQuizChoice(index) {
+  if (quizPhase !== "choosing") return;
+  quizSelectedChoice = index;
+  quizPhase = "checking";
+  renderQuizQuestion();
+  maybeRevealQuizAnswer();
+}
+
+quizChoicesEl.addEventListener("click", (event) => {
+  const button = event.target.closest(".quiz-choice-button");
+  if (!button) return;
+  selectQuizChoice(Number(button.dataset.index));
+});
+
+// 距離レバーをドラッグするたびに呼ばれ、「予想を選択済み・まだ答え合わせして
+// いない」状態で雲が現れた瞬間だけ答え合わせを表示する
+function maybeRevealQuizAnswer() {
+  if (quizActive && quizPhase === "checking" && lastCloudVisible) {
+    revealQuizAnswer();
+  }
+}
+
+function revealQuizAnswer() {
+  quizPhase = "revealed";
+  const question = QUIZ_QUESTIONS[quizQuestionIndex];
+  const level = VAPOR_LEVELS[question.vaporLevelIndex];
+  const actualValue = Math.round((currentHeight / MOUNTAIN_MAX_HEIGHT) * HEIGHT_DISPLAY_SCALE);
+  // 選択肢は「◯◯くらい」という近似値なので、実測値に最も近い選択肢を正解とみなす
+  const nearestChoiceIndex = QUIZ_CHOICES.reduce(
+    (best, value, index) =>
+      Math.abs(value - actualValue) < Math.abs(QUIZ_CHOICES[best] - actualValue) ? index : best,
+    0
+  );
+  const matched = quizSelectedChoice === nearestChoiceIndex;
+  quizResults.push({ level, actualValue, matched });
+
+  quizYourGuessEl.textContent = MESSAGES.quizYourGuess(quizChoiceLabel(quizSelectedChoice));
+  quizRevealTextEl.textContent =
+    (matched ? `${MESSAGES.quizRevealMatched} ` : "") + MESSAGES.quizRevealText(actualValue, level.value.toFixed(1));
+  quizNextButton.textContent =
+    quizQuestionIndex === QUIZ_QUESTIONS.length - 1 ? MESSAGES.quizFinishButtonLabel : MESSAGES.quizNextButtonLabel;
+  quizRevealEl.hidden = false;
+}
+
+// 問題ごとに、水蒸気の量を強制的に切り替え、距離レバーを遠い(高さ0)に戻して
+// から出題する。既に雲が出ている状態から始まると「動かさなくても答え合わせが
+// 出る」ことになってしまうため、必ず高さ0から始める
+function startQuizQuestion() {
+  const question = QUIZ_QUESTIONS[quizQuestionIndex];
+  setVaporLevel(question.vaporLevelIndex, true);
+  currentDistance = MOUNTAIN_INFLUENCE_RADIUS;
+  currentHeight = 0;
+  positionAirMass(currentDistance);
+  updateGauges(currentHeight);
+  quizPhase = "choosing";
+  quizSelectedChoice = null;
+  renderQuizQuestion();
+}
+
+function startQuiz() {
+  quizActive = true;
+  quizQuestionIndex = 0;
+  quizResults = [];
+  quizStartButton.hidden = true;
+  quizPanel.hidden = false;
+  quizSummaryEl.hidden = true;
+  setVaporLevelLocked(true);
+  startQuizQuestion();
+}
+
+function goToNextQuizStep() {
+  if (quizQuestionIndex < QUIZ_QUESTIONS.length - 1) {
+    quizQuestionIndex += 1;
+    startQuizQuestion();
+  } else {
+    showQuizSummary();
+  }
+}
+
+// 4段階で答えが違ったことに気づけるよう、水蒸気の量が少ない順に並べ替えて見せる
+function showQuizSummary() {
+  quizPanel.hidden = true;
+  quizSummaryEl.hidden = false;
+  quizSummaryTitleEl.textContent = MESSAGES.quizSummaryTitle;
+  const sorted = [...quizResults].sort((a, b) => a.level.value - b.level.value);
+  quizSummaryListEl.innerHTML = sorted
+    .map((result) => `<li>${MESSAGES.quizSummaryRow(result.level.label, result.level.value.toFixed(1), result.actualValue)}</li>`)
+    .join("");
+  quizSummaryConclusionEl.textContent = MESSAGES.quizSummaryConclusion;
+}
+
+function exitQuiz() {
+  quizActive = false;
+  quizStartButton.hidden = false;
+  quizPanel.hidden = true;
+  quizSummaryEl.hidden = true;
+  setVaporLevelLocked(false);
+}
+
+quizStartButton.addEventListener("click", startQuiz);
+quizExitButton.addEventListener("click", exitQuiz);
+quizNextButton.addEventListener("click", goToNextQuizStep);
+quizRestartButton.addEventListener("click", startQuiz);
+quizSummaryExitButton.addEventListener("click", exitQuiz);
+
+quizStartButton.textContent = MESSAGES.quizStartButtonLabel;
+quizExitButton.textContent = MESSAGES.quizExitButtonLabel;
+quizSummaryExitButton.textContent = MESSAGES.quizExitButtonLabel;
+quizRestartButton.textContent = MESSAGES.quizRestartButtonLabel;
 
 function renderLegend() {
   legendEl.innerHTML = `

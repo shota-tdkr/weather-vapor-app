@@ -45,6 +45,159 @@ body {
   color: #eaeaea;
 }
 
+/* お題モード（design.md「お題モード」参照）。既存のボタン・ボックスの見た目
+   （tutorial-replay/tutorial-next/change-log等）に合わせ、新しい配色は増やさない */
+.quiz-start-button,
+.quiz-exit-button {
+  font-family: inherit;
+  font-size: 0.8rem;
+  padding: 0.35rem 0.8rem;
+  border: 1px solid #1c2541;
+  border-radius: 6px;
+  background: none;
+  color: #1c2541;
+  cursor: pointer;
+}
+
+.quiz-start-button:hover,
+.quiz-exit-button:hover {
+  background: #1c2541;
+  color: #eaeaea;
+}
+
+.quiz-panel,
+.quiz-summary {
+  max-width: 600px;
+  margin: 0 auto 1rem;
+  padding: 0.8rem 1rem;
+  border: 2px solid #1c2541;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  text-align: left;
+}
+
+.quiz-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  margin-bottom: 0.5rem;
+}
+
+.quiz-progress {
+  margin: 0;
+  font-weight: bold;
+  font-size: 0.8rem;
+  opacity: 0.7;
+}
+
+.quiz-question {
+  margin: 0 0 0.7rem;
+  font-weight: bold;
+}
+
+.quiz-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.quiz-choice-button {
+  font-family: inherit;
+  font-size: 0.85rem;
+  padding: 0.5rem 0.6rem;
+  border: 2px solid #1c2541;
+  border-radius: 6px;
+  background: #eaeaea;
+  color: #1c2541;
+  cursor: pointer;
+  flex: 1 1 auto;
+}
+
+.quiz-choice-button:hover:not(:disabled) {
+  background: #1c2541;
+  color: #eaeaea;
+}
+
+.quiz-choice-button.selected {
+  background: #1c2541;
+  color: #eaeaea;
+}
+
+.quiz-choice-button:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.quiz-choice-button.selected:disabled {
+  opacity: 1;
+}
+
+.quiz-hint {
+  margin: 0.5rem 0 0;
+  font-size: 0.8rem;
+  opacity: 0.8;
+}
+
+.quiz-reveal {
+  margin-top: 0.7rem;
+  padding-top: 0.6rem;
+  border-top: 1px dashed #1c2541;
+}
+
+.quiz-your-guess {
+  margin: 0 0 0.3rem;
+  font-size: 0.8rem;
+  opacity: 0.8;
+}
+
+.quiz-reveal-text {
+  margin: 0 0 0.7rem;
+}
+
+.quiz-next-button,
+.quiz-restart-button {
+  font-family: inherit;
+  font-size: 0.9rem;
+  padding: 0.4rem 1rem;
+  border: 2px solid #1c2541;
+  border-radius: 6px;
+  background: #1c2541;
+  color: #eaeaea;
+  cursor: pointer;
+}
+
+.quiz-summary-title {
+  margin: 0 0 0.5rem;
+  font-weight: bold;
+}
+
+.quiz-summary-list {
+  margin: 0 0 0.7rem;
+  padding-left: 1.2rem;
+}
+
+.quiz-summary-list li {
+  margin-bottom: 0.25rem;
+}
+
+.quiz-summary-conclusion {
+  margin: 0 0 0.7rem;
+}
+
+.quiz-summary-actions {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+/* お題中、水蒸気の量スライダーを操作不可にする（動かせると答えが変わって
+   しまうため。design.md参照）。触れないことが見た目で分かるようグレーアウトする */
+.levers-locked {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
 /* レイアウト変更（2026-08-27）: マップ・距離レバー・水蒸気の量スライダーを
    縦1列に積む。「読む」計器（温度・水蒸気ゲージ）はマップ内蔵、「触る」レバーは
    マップ外・横向きにして、場所・向き・色の3点で区別する（design.md「UIの課題」参照） */
