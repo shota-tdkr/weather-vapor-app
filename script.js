@@ -144,7 +144,12 @@ const MESSAGES = {
   quizStartButtonLabel: "お題に挑戦",
   quizExitButtonLabel: "自由に触る",
   quizProgress: (current, total) => `お題 ${current} / ${total}`,
-  quizQuestion: "この空気は、どのくらい上げると雲ができるだろう？",
+  // 問題文は条件（水蒸気の量）と問う対象（高さ）を明示する。「この空気」だと
+  // 何を指すか画面から読めず、「どのくらい上げると」だと横操作の距離レバーと
+  // 食い違い、選択肢の数字が何かも分からないため（design.md「お題モード」参照）。
+  // タイトル下のサブタイトルはキャッチコピーとして別文言のまま
+  quizQuestion: (heldVapor) =>
+    `水蒸気を${heldVapor} g/m³ ふくんだ空気です。\n高さがどのくらいになると、雲ができるだろう？`,
   quizChoiceLabel: (index, value) => `${["①", "②", "③", "④"][index]}${value}くらい`,
   quizCheckingHint: "距離レバーを動かして、実際に確かめてみよう",
   quizYourGuess: (label) => `あなたの予想: ${label}`,
@@ -779,7 +784,8 @@ function quizChoiceLabel(index) {
 // phaseに応じてボタンの選択状態・disabledを切り替える
 function renderQuizQuestion() {
   quizProgressEl.textContent = MESSAGES.quizProgress(quizQuestionIndex + 1, QUIZ_QUESTIONS.length);
-  quizQuestionEl.textContent = MESSAGES.quizQuestion;
+  const questionLevel = VAPOR_LEVELS[QUIZ_QUESTIONS[quizQuestionIndex].vaporLevelIndex];
+  quizQuestionEl.textContent = MESSAGES.quizQuestion(questionLevel.value.toFixed(1));
   quizChoicesEl.innerHTML = QUIZ_CHOICES.map((value, index) => {
     const selected = quizSelectedChoice === index;
     const disabled = quizPhase !== "choosing";

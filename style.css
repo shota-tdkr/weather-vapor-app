@@ -94,6 +94,9 @@ body {
 .quiz-question {
   margin: 0 0 0.7rem;
   font-weight: bold;
+  /* 問題文は「条件」と「問い」の2文。間の \n を改行として見せる
+     （狭い画面ではそれぞれの文がさらに折り返してよい） */
+  white-space: pre-line;
 }
 
 .quiz-choices {
@@ -618,6 +621,9 @@ body {
 
   .quiz-question {
     margin-bottom: 0.3rem;
+    /* 問題文が「条件」＋「問い」の2文になり縦に伸びたので、狭い画面では
+       少し詰めて各文が1行に収まりやすくする（マップ以下が押し下がるのを防ぐ） */
+    font-size: 0.82rem;
   }
 
   .quiz-hint {
