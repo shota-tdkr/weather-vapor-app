@@ -172,13 +172,36 @@ body {
   font-weight: bold;
 }
 
-.quiz-summary-list {
+/* 4問のまとめ表（空気 / あなたの予想 / 実際）。横スクロールが出ないよう、
+   狭い画面ではフォントを詰める。念のため wrap 側に overflow-x を持たせる */
+.quiz-summary-table-wrap {
   margin: 0 0 0.7rem;
-  padding-left: 1.2rem;
+  overflow-x: auto;
 }
 
-.quiz-summary-list li {
-  margin-bottom: 0.25rem;
+.quiz-summary-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.quiz-summary-table th,
+.quiz-summary-table td {
+  border: 1px solid #1c2541;
+  padding: 0.3rem 0.4rem;
+  text-align: center;
+}
+
+.quiz-summary-table thead th {
+  font-weight: bold;
+  background: rgba(28, 37, 65, 0.08);
+}
+
+/* 行見出し（「少ない (4.8)」など）は左寄せ・折り返さない */
+.quiz-summary-table th[scope="row"] {
+  text-align: left;
+  font-weight: normal;
+  white-space: nowrap;
 }
 
 .quiz-summary-conclusion {
@@ -242,6 +265,15 @@ body {
   font-size: 12px;
   fill: #1c2541;
   font-weight: bold;
+}
+
+/* ゲージ見出しの横に出す「今の水蒸気の量」の数値。塗り（＝今の量）のすぐ上、
+   plate右端に右寄せで置く（見出し「水蒸気の量」と重ならないように） */
+.held-vapor-readout {
+  font-size: 10px;
+  fill: #1c2541;
+  font-weight: bold;
+  text-anchor: end;
 }
 
 .temp-strip-bg {
@@ -633,6 +665,16 @@ body {
   body.quiz-mode #vapor-level-lever {
     height: 30px;
   }
+
+  /* まとめ表: 狭い画面でも横スクロールが出ないようフォントとパディングを詰める */
+  .quiz-summary-table {
+    font-size: 0.8rem;
+  }
+
+  .quiz-summary-table th,
+  .quiz-summary-table td {
+    padding: 0.28rem 0.3rem;
+  }
 }
 
 /* iPhone SE 相当（狭い方）。横一列を維持しつつ「壊れずに動く」ことを目標に
@@ -646,5 +688,14 @@ body {
     font-size: 0.68rem;
     padding: 0.45rem 0.1rem;
     letter-spacing: -0.03em;
+  }
+
+  .quiz-summary-table {
+    font-size: 0.72rem;
+  }
+
+  .quiz-summary-table th,
+  .quiz-summary-table td {
+    padding: 0.24rem 0.22rem;
   }
 }

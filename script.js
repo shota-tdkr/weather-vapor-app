@@ -29,6 +29,7 @@ const LIFT_ARROW_OFFSETS = [
 const changeLogList = document.getElementById("change-log-list");
 const changeLogEl = document.getElementById("change-log");
 const mapEl = document.getElementById("map");
+const heldVaporValueEl = document.getElementById("held-vapor-value");
 const tutorialOverlay = document.getElementById("tutorial-overlay");
 const tutorialBubble = document.getElementById("tutorial-bubble");
 const tutorialStepLabelEl = document.getElementById("tutorial-step-label");
@@ -49,7 +50,7 @@ const quizRevealTextEl = document.getElementById("quiz-reveal-text");
 const quizNextButton = document.getElementById("quiz-next-button");
 const quizSummaryEl = document.getElementById("quiz-summary");
 const quizSummaryTitleEl = document.getElementById("quiz-summary-title");
-const quizSummaryListEl = document.getElementById("quiz-summary-list");
+const quizSummaryTableWrap = document.getElementById("quiz-summary-table-wrap");
 const quizSummaryConclusionEl = document.getElementById("quiz-summary-conclusion");
 const quizRestartButton = document.getElementById("quiz-restart-button");
 const quizSummaryExitButton = document.getElementById("quiz-summary-exit-button");
@@ -148,12 +149,20 @@ const MESSAGES = {
   quizCheckingHint: "距離レバーを動かして、実際に確かめてみよう",
   quizYourGuess: (label) => `あなたの予想: ${label}`,
   quizRevealMatched: "予想どおりでした！",
+  // actual は選択肢に揃えた値（実測が9でも選択肢の10で見せる。10と9の差は
+  // 学習上意味がなく、選択肢と解説の食い違いによる混乱の方が問題）
   quizRevealText: (actual, heldVapor) =>
     `実際は${actual}くらいでした。この空気は水蒸気を${heldVapor}g/m³ふくんでいるので、${actual}まで上げると抱えきれなくなります。`,
   quizNextButtonLabel: "次の問題へ",
   quizFinishButtonLabel: "まとめを見る",
   quizSummaryTitle: "4問終わりました",
-  quizSummaryRow: (label, value, actual) => `水蒸気の量が${label}（${value} g/m³）→ ${actual}くらいで雲ができた`,
+  // 4問のまとめ表: 水蒸気の量が少ない順に、予想と実際を並べる。「正解/不正解」は
+  // 出さず、数字の並びだけ見せる（ずれた箇所が自分で分かる／量が増えるほど雲が
+  // 低い高さでできることが並びで一目で分かる。design.md「お題モード」参照）
+  quizSummaryHeadAir: "空気",
+  quizSummaryHeadGuess: "あなたの予想",
+  quizSummaryHeadActual: "実際",
+  quizSummaryAirCell: (label, value) => `${label} (${value})`,
   quizSummaryConclusion:
     "同じ山でも、空気にふくまれる水蒸気の量が違うと、雲ができる高さが変わりましたね。",
   quizRestartButtonLabel: "もう一度挑戦する",
@@ -358,7 +367,10 @@ function updateGauges(height) {
   tempStripFill.setAttribute("width", tempRatio * TEMP_STRIP_WIDTH);
 
   // 水蒸気ゲージ（反転済み）: 塗り＝水蒸気の量（currentHeldVapor。高さを変えても
-  // 動かないが、水蒸気の量スライダーで段階的に変えられる）
+  // 動かないが、水蒸気の量スライダーで段階的に変えられる）。ゲージ見出しの横に
+  // 現在の量の数値も出す（お題モードで予想の根拠になる。画面下のスライダー読み上げは
+  // お題中グレーアウトして薄いため。design.md「お題モード」参照）
+  heldVaporValueEl.textContent = currentHeldVapor.toFixed(1);
   const heldTopY = verticalFillTopY(currentHeldVapor / VAPOR_MAX, VAPOR_TRACK_TOP, VAPOR_TRACK_HEIGHT);
   vaporFill.setAttribute("y", heldTopY);
   vaporFill.setAttribute("height", VAPOR_TRACK_TOP + VAPOR_TRACK_HEIGHT - heldTopY);
@@ -804,15 +816,18 @@ function revealQuizAnswer() {
   quizPhase = "revealed";
   const question = QUIZ_QUESTIONS[quizQuestionIndex];
   const level = VAPOR_LEVELS[question.vaporLevelIndex];
-  const actualValue = Math.round((currentHeight / MOUNTAIN_MAX_HEIGHT) * HEIGHT_DISPLAY_SCALE);
-  // 選択肢は「◯◯くらい」という近似値なので、実測値に最も近い選択肢を正解とみなす
+  const measuredHeight = Math.round((currentHeight / MOUNTAIN_MAX_HEIGHT) * HEIGHT_DISPLAY_SCALE);
+  // 選択肢は「◯◯くらい」という近似値なので、実測値に最も近い選択肢を「実際」とする。
+  // 生徒に見せる数値（解説・まとめ表）は必ずこの選択肢の値に揃える（実測9でも10と表示）
   const nearestChoiceIndex = QUIZ_CHOICES.reduce(
     (best, value, index) =>
-      Math.abs(value - actualValue) < Math.abs(QUIZ_CHOICES[best] - actualValue) ? index : best,
+      Math.abs(value - measuredHeight) < Math.abs(QUIZ_CHOICES[best] - measuredHeight) ? index : best,
     0
   );
+  const actualValue = QUIZ_CHOICES[nearestChoiceIndex];
+  const guessValue = QUIZ_CHOICES[quizSelectedChoice];
   const matched = quizSelectedChoice === nearestChoiceIndex;
-  quizResults.push({ level, actualValue, matched });
+  quizResults.push({ level, guessValue, actualValue, matched });
 
   quizYourGuessEl.textContent = MESSAGES.quizYourGuess(quizChoiceLabel(quizSelectedChoice));
   quizRevealTextEl.textContent =
@@ -863,15 +878,27 @@ function goToNextQuizStep() {
   }
 }
 
-// 4段階で答えが違ったことに気づけるよう、水蒸気の量が少ない順に並べ替えて見せる
+// 4段階で答えが違ったことに気づけるよう、水蒸気の量が少ない順に並べ替えて見せる。
+// 予想と実際を1行ずつ並べた表にすることで、正解数を明示せずに「どこがずれたか」
+// 「量が増えるほど雲が低い高さでできる」が自分で読み取れる（design.md参照）
 function showQuizSummary() {
   quizPanel.hidden = true;
   quizSummaryEl.hidden = false;
   quizSummaryTitleEl.textContent = MESSAGES.quizSummaryTitle;
   const sorted = [...quizResults].sort((a, b) => a.level.value - b.level.value);
-  quizSummaryListEl.innerHTML = sorted
-    .map((result) => `<li>${MESSAGES.quizSummaryRow(result.level.label, result.level.value.toFixed(1), result.actualValue)}</li>`)
+  const bodyRows = sorted
+    .map(
+      (r) =>
+        `<tr><th scope="row">${MESSAGES.quizSummaryAirCell(r.level.label, r.level.value.toFixed(1))}</th>` +
+        `<td>${r.guessValue}</td><td>${r.actualValue}</td></tr>`
+    )
     .join("");
+  quizSummaryTableWrap.innerHTML =
+    `<table class="quiz-summary-table"><thead><tr>` +
+    `<th scope="col">${MESSAGES.quizSummaryHeadAir}</th>` +
+    `<th scope="col">${MESSAGES.quizSummaryHeadGuess}</th>` +
+    `<th scope="col">${MESSAGES.quizSummaryHeadActual}</th>` +
+    `</tr></thead><tbody>${bodyRows}</tbody></table>`;
   quizSummaryConclusionEl.textContent = MESSAGES.quizSummaryConclusion;
 }
 

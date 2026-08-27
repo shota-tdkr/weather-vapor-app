@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>天気のたね</title>
   <!-- ?v=N はキャッシュ対策。style.css/script.js を編集したら両方の番号を1つ上げる -->
-  <link rel="stylesheet" href="./style.css?v=32">
+  <link rel="stylesheet" href="./style.css?v=33">
 </head>
 <body>
   <h1 class="app-title">天気のたね</h1>
@@ -36,7 +36,7 @@
 
   <div id="quiz-summary" class="quiz-summary" hidden>
     <p id="quiz-summary-title" class="quiz-summary-title"></p>
-    <ul id="quiz-summary-list" class="quiz-summary-list"></ul>
+    <div id="quiz-summary-table-wrap" class="quiz-summary-table-wrap"></div>
     <p id="quiz-summary-conclusion" class="quiz-summary-conclusion"></p>
     <div class="quiz-summary-actions">
       <button id="quiz-restart-button" class="quiz-restart-button" type="button"></button>
@@ -94,8 +94,12 @@
            （気温が下がると降りてくる）。点線が塗りより下に来た分を白抜き＋輪郭線で
            示す（○が白く曇る雲の表現と同じ視覚言語。design.md参照） -->
       <g class="vapor-panel" transform="translate(296,20)">
-        <rect class="panel-plate" x="-10" y="-20" width="96" height="270" rx="6" />
-        <text class="gauge-label" x="26" y="-6">水蒸気の量</text>
+        <rect class="panel-plate" x="-10" y="-20" width="108" height="270" rx="6" />
+        <text class="gauge-label" x="-4" y="-6">水蒸気の量</text>
+        <!-- 現在の水蒸気の量の数値。ゲージの塗り（＝今の量）のすぐ上、見出しの右端に
+             右寄せで置き、視線移動なく読めるようにする（お題モードで予想の根拠になる）。
+             plateは見出し＋数値が1行に収まるよう幅を96→108に広げた -->
+        <text class="held-vapor-readout" x="96" y="-6"><tspan id="held-vapor-value">9.4</tspan> g/m³</text>
         <rect class="gauge-track" x="0" y="0" width="52" height="210" />
         <rect id="vapor-fill" class="gauge-fill" x="0" y="0" width="52" height="0" />
         <rect id="vapor-excess-band" class="excess-band" x="0" y="0" width="52" height="0" />
@@ -154,6 +158,6 @@
     </div>
   </div>
 
-  <script src="./script.js?v=32"></script>
+  <script src="./script.js?v=33"></script>
 </body>
 </html>
