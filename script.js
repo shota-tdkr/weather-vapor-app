@@ -836,6 +836,11 @@ function startQuiz() {
   quizStartButton.hidden = true;
   quizPanel.hidden = false;
   quizSummaryEl.hidden = true;
+  // お題中はスマホでサブタイトル・ツールバーを隠し、お題パネルを縦に圧縮する
+  // （375pxでゲージ・距離レバー・水蒸気の量スライダーが1画面に収まらなくなるため。
+  //  スタイルはstyle.cssの @media (max-width:700px) 側で body.quiz-mode を見て切り替える。
+  //  PC表示は一切変えない）
+  document.body.classList.add("quiz-mode");
   setVaporLevelLocked(true);
   startQuizQuestion();
 }
@@ -866,6 +871,8 @@ function exitQuiz() {
   quizStartButton.hidden = false;
   quizPanel.hidden = true;
   quizSummaryEl.hidden = true;
+  // サブタイトル・ツールバーを元通り表示に戻す
+  document.body.classList.remove("quiz-mode");
   setVaporLevelLocked(false);
   setDistanceLeverLocked(false);
 }

@@ -558,4 +558,93 @@ body {
   .app-layout {
     gap: 0.4rem;
   }
+
+  /* お題モード中のスマホ限定の縦詰め（design.md「お題モード」／PC表示は変えない）。
+     お題パネル（219〜238px）が挿入されることでマップが押し下げられ、375×667で
+     水蒸気の量ゲージ・距離レバー・水蒸気の量スライダーの読み上げが画面外に
+     出てしまうため、以下の4点で約180px回収する:
+       A. サブタイトルを隠す（お題の質問文と一字一句同じ文言なので冗長）
+       B. ツールバーを隠す（「お題に挑戦」は元々hidden、「使い方を見る」はお題中不要）
+       C. お題パネルの余白を圧縮
+       D. 選択肢を2×2から横一列4つに（正確なg数を画面内に残すための縦の余地を作る） */
+  body.quiz-mode .app-subtitle,
+  body.quiz-mode .toolbar {
+    display: none;
+  }
+
+  /* C: お題パネル・まとめパネルの余白圧縮（パネルはお題中しか表示されないので
+     media query だけで足り、body.quiz-mode で限定する必要はない） */
+  .quiz-panel,
+  .quiz-summary {
+    padding: 0.45rem 0.7rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .quiz-header {
+    margin-bottom: 0.3rem;
+  }
+
+  .quiz-question {
+    margin-bottom: 0.3rem;
+  }
+
+  .quiz-hint {
+    margin-top: 0.2rem;
+  }
+
+  /* D: 選択肢を横一列に。4つを375pxに収めるためフォントとパディングを詰める
+     （「②25くらい」程度の短い文字列なら読める前提。ユーザー承認済み） */
+  .quiz-choices {
+    flex-wrap: nowrap;
+    gap: 0.4rem;
+  }
+
+  .quiz-choice-button {
+    flex: 1 1 0;
+    min-width: 0;
+    font-size: 0.72rem;
+    padding: 0.5rem 0.25rem;
+    white-space: nowrap;
+  }
+
+  /* A〜D だけではマップ押し下げ分を吸収しきれず、水蒸気の量スライダーの
+     読み上げ（正確なg数。予想の根拠として画面内に残したい）が667pxをはみ出す。
+     お題中だけレバー周りの余白も詰めて、あと約35px回収する。これらの要素は
+     お題外でも表示されるため body.quiz-mode で限定する（お題を抜ければ元に戻る） */
+  body.quiz-mode .app-layout {
+    gap: 0.2rem;
+  }
+
+  body.quiz-mode .levers {
+    margin-top: 0.2rem;
+  }
+
+  body.quiz-mode .lever-caption {
+    margin-bottom: 0.15rem;
+    font-size: 0.8rem;
+  }
+
+  body.quiz-mode .vapor-level-readout {
+    margin-top: 0.1rem;
+  }
+
+  /* 水蒸気の量スライダーはお題中ロック中（触らない）なので、つまみの
+     タッチ範囲を気にせず高さを詰めてよい。距離レバーは主操作なので触らない */
+  body.quiz-mode #vapor-level-lever {
+    height: 30px;
+  }
+}
+
+/* iPhone SE 相当（狭い方）。横一列を維持しつつ「壊れずに動く」ことを目標に
+   さらに詰める（CLAUDE.md「スマホは壊れずに動く」） */
+@media (max-width: 360px) {
+  .quiz-choices {
+    gap: 0.25rem;
+  }
+
+  .quiz-choice-button {
+    font-size: 0.68rem;
+    padding: 0.45rem 0.1rem;
+    letter-spacing: -0.03em;
+  }
 }
