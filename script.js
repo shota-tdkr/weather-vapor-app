@@ -28,6 +28,7 @@ const LIFT_ARROW_OFFSETS = [
 ];
 const changeLogList = document.getElementById("change-log-list");
 const changeLogEl = document.getElementById("change-log");
+const mapEl = document.getElementById("map");
 const tutorialOverlay = document.getElementById("tutorial-overlay");
 const tutorialBubble = document.getElementById("tutorial-bubble");
 const tutorialStepLabelEl = document.getElementById("tutorial-step-label");
@@ -120,10 +121,18 @@ const MESSAGES = {
   // あふれ量が最大に達したときだけの一言。「雲ができる=雨が降る」という誤った
   // 因果を避けるため、雨を降らせる演出は追加せず、条件付きの説明に留める
   logRainHint: "→ さらに条件が重なると、雲の粒が成長して雨になります",
-  // チュートリアル（初回起動時のみ、吹き出しガイド）
+  // チュートリアル（初回起動時のみ、吹き出しガイド）。前提知識（飽和水蒸気量）
+  // のない人が「なんで雲が急に出てきたの?」となるため、身近な結露を導入にして
+  // 「空気は冷えると水をかかえきれなくなる」を式を使わずに先に伝える
+  // （design.md「チュートリアル」参照）
   tutorialStepLabel: (current, total) => `${current} / ${total}`,
-  tutorialStep1: "距離レバーを動かして、空気の塊（○）を山（▲）に近づけてみよう",
-  tutorialStep2: "下の変化ログに、なぜそうなったかが表示されます",
+  tutorialStep1:
+    "冷たいコップの外側につく水のつぶは、まわりの空気が冷やされて、かかえきれない水分がしずくになったものだよ。",
+  tutorialStep2:
+    "同じことが空の上でも起きているよ。持ち上げられた空気は冷えて、かかえきれない水分がつぶになる。これが雲だよ。",
+  tutorialStep3: "距離レバーを動かして、空気の塊（○）を山（▲）に近づけてみよう",
+  tutorialStep4:
+    "レバーを動かすと、画面の下の「変化ログ」に、なぜそうなったかが順番に表示されるよ。スクロールして見てみよう。",
   tutorialNext: "次へ",
   tutorialFinish: "はじめる",
   tutorialSkip: "スキップ",
@@ -916,9 +925,13 @@ updateGauges(currentHeight);
 // チュートリアル（初回起動時のみ、今のシーンに吹き出しを重ねるだけで別画面には遷移しない）
 const TUTORIAL_STORAGE_KEY = "weather-app-tutorial-seen";
 
+// target が null のステップ（コップの導入など、画面上に対応する要素がない話）は
+// 吹き出しを画面中央に出す。導入2ステップ→操作→変化ログ、の順で上から下へ誘導する
 const TUTORIAL_STEPS = [
-  { target: distanceLever, text: MESSAGES.tutorialStep1 },
-  { target: changeLogEl, text: MESSAGES.tutorialStep2 },
+  { target: null, text: MESSAGES.tutorialStep1 },
+  { target: mapEl, text: MESSAGES.tutorialStep2 },
+  { target: distanceLever, text: MESSAGES.tutorialStep3 },
+  { target: changeLogEl, text: MESSAGES.tutorialStep4 },
 ];
 
 let tutorialStepIndex = 0;
@@ -926,10 +939,18 @@ let tutorialHighlightedEl = null;
 tutorialSkipButton.textContent = MESSAGES.tutorialSkip;
 
 function positionTutorialBubble(target) {
-  const rect = target.getBoundingClientRect();
   const bubbleWidth = tutorialBubble.offsetWidth;
   const bubbleHeight = tutorialBubble.offsetHeight;
 
+  // 対応する要素がないステップは画面中央に出す（狭い画面でもはみ出さないよう
+  // clampは下限12pxだけかける）
+  if (!target) {
+    tutorialBubble.style.left = `${clamp((window.innerWidth - bubbleWidth) / 2, 12, window.innerWidth - bubbleWidth - 12)}px`;
+    tutorialBubble.style.top = `${clamp((window.innerHeight - bubbleHeight) / 2, 12, window.innerHeight - bubbleHeight - 12)}px`;
+    return;
+  }
+
+  const rect = target.getBoundingClientRect();
   let left = clamp(rect.left, 12, window.innerWidth - bubbleWidth - 12);
   let top = rect.bottom + 12;
   if (top + bubbleHeight > window.innerHeight - 12) {
@@ -944,10 +965,13 @@ function positionTutorialBubble(target) {
 function showTutorialStep(index) {
   if (tutorialHighlightedEl) {
     tutorialHighlightedEl.classList.remove("tutorial-highlight");
+    tutorialHighlightedEl = null;
   }
   const step = TUTORIAL_STEPS[index];
-  tutorialHighlightedEl = step.target;
-  tutorialHighlightedEl.classList.add("tutorial-highlight");
+  if (step.target) {
+    tutorialHighlightedEl = step.target;
+    tutorialHighlightedEl.classList.add("tutorial-highlight");
+  }
   tutorialTextEl.textContent = step.text;
   tutorialStepLabelEl.textContent = MESSAGES.tutorialStepLabel(index + 1, TUTORIAL_STEPS.length);
   tutorialNextButton.textContent =
@@ -987,8 +1011,8 @@ tutorialReplayButton.addEventListener("click", startTutorial);
 tutorialReplayButton.textContent = MESSAGES.tutorialReplay;
 
 window.addEventListener("resize", () => {
-  if (!tutorialOverlay.hidden && tutorialHighlightedEl) {
-    positionTutorialBubble(tutorialHighlightedEl);
+  if (!tutorialOverlay.hidden) {
+    positionTutorialBubble(TUTORIAL_STEPS[tutorialStepIndex].target);
   }
 });
 
