@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>天気のたね</title>
   <!-- ?v=N はキャッシュ対策。style.css/script.js を編集したら両方の番号を1つ上げる -->
-  <link rel="stylesheet" href="./style.css?v=29">
+  <link rel="stylesheet" href="./style.css?v=30">
 </head>
 <body>
   <h1 class="app-title">天気のたね</h1>
@@ -108,7 +108,7 @@
 
     <!-- 距離レバー: マップ外・横向き・全幅。左＝遠い、右＝山に近い、で指の動きと
          ○の動く向きを一致させる（従来の縦向きは「指は上、○は右」という不一致があった） -->
-    <div class="levers">
+    <div class="levers" id="distance-lever-panel">
       <p id="distance-lever-caption" class="lever-caption"></p>
       <svg id="distance-lever" class="lever-svg" viewBox="0 0 400 40" xmlns="http://www.w3.org/2000/svg" aria-label="距離レバー">
         <rect class="gauge-track" x="4" y="13" width="392" height="14" rx="7" />
@@ -154,6 +154,6 @@
     </div>
   </div>
 
-  <script src="./script.js?v=29"></script>
+  <script src="./script.js?v=30"></script>
 </body>
 </html>

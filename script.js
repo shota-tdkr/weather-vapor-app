@@ -13,6 +13,7 @@ const distanceLever = document.getElementById("distance-lever");
 const distanceLeverFill = document.getElementById("distance-lever-fill");
 const distanceLeverHandle = document.getElementById("distance-lever-handle");
 const distanceLeverCaptionEl = document.getElementById("distance-lever-caption");
+const distanceLeverPanel = document.getElementById("distance-lever-panel");
 const vaporLevelLever = document.getElementById("vapor-level-lever");
 const vaporLevelFill = document.getElementById("vapor-level-fill");
 const vaporLevelHandle = document.getElementById("vapor-level-handle");
@@ -198,6 +199,9 @@ let quizQuestionIndex = 0;
 let quizPhase = "choosing"; // "choosing"(予想前) | "checking"(予想後、確認中) | "revealed"(答え合わせ済み)
 let quizSelectedChoice = null;
 let quizResults = [];
+// お題が出た直後（choosing）は距離レバーもロックし、「先に動かして確かめる」を
+// できなくする。予想を選んだ時点（checking）でロック解除する
+let distanceLocked = false;
 
 // 実際に到達する範囲（温度15℃〜-5℃、飽和水蒸気量2.8〜12.8g/m³）に対して
 // 余裕を持たせつつ、可動域の大半を使うように調整した値（レビュー指摘対応）
@@ -653,9 +657,11 @@ function bindLeverDrag(leverEl, { onStart, onMove, onEnd }) {
 let distanceDragStart = null;
 bindLeverDrag(distanceLever, {
   onStart: (svgX) => {
+    if (distanceLocked) return;
     distanceDragStart = { svgX, value: currentDistance, heightBefore: currentHeight };
   },
   onMove: (svgX) => {
+    if (distanceLocked) return;
     if (!distanceDragStart) return;
     const deltaX = svgX - distanceDragStart.svgX;
     const deltaDistance = deltaX * (MOUNTAIN_INFLUENCE_RADIUS / LEVER_TRACK_WIDTH);
@@ -737,6 +743,13 @@ function setVaporLevelLocked(locked) {
   vaporLevelPanel.classList.toggle("levers-locked", locked);
 }
 
+// お題が出た直後（予想前）は距離レバーも動かせないようにし、先に動かして
+// 確かめてから予想する、という抜け道を防ぐ。予想を選んだ時点でロック解除する
+function setDistanceLeverLocked(locked) {
+  distanceLeverPanel.classList.toggle("levers-locked", locked);
+  distanceLocked = locked;
+}
+
 function quizChoiceLabel(index) {
   return MESSAGES.quizChoiceLabel(index, QUIZ_CHOICES[index]);
 }
@@ -759,6 +772,7 @@ function selectQuizChoice(index) {
   if (quizPhase !== "choosing") return;
   quizSelectedChoice = index;
   quizPhase = "checking";
+  setDistanceLeverLocked(false);
   renderQuizQuestion();
   maybeRevealQuizAnswer();
 }
@@ -811,6 +825,7 @@ function startQuizQuestion() {
   updateGauges(currentHeight);
   quizPhase = "choosing";
   quizSelectedChoice = null;
+  setDistanceLeverLocked(true);
   renderQuizQuestion();
 }
 
@@ -852,6 +867,7 @@ function exitQuiz() {
   quizPanel.hidden = true;
   quizSummaryEl.hidden = true;
   setVaporLevelLocked(false);
+  setDistanceLeverLocked(false);
 }
 
 quizStartButton.addEventListener("click", startQuiz);
