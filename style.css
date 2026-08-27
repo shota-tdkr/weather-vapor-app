@@ -135,12 +135,16 @@ body {
    モード切り替え時の位置ジャンプを、水滴のフェード（0.3s）と足並みを揃えてなめらかに
    見せるためのトランジション。ドラッグ中は#air-mass.draggingで無効化し、指に瞬時に
    追従させる（レバー操作の1:1追従が崩れないようにするため）。
-   fillは白固定にし、あふれ量に応じたfill-opacity（JS側で設定、初期値0）だけで
-   雲の濃さを表現する。opacity 0のときは背景色(#eaeaea)がそのまま透けて見え、
-   これまでどおり輪郭線だけの「曇っていない」見た目になる */
+   fillは白固定にし、あふれ量に応じたfill-opacity（JS側でupdateGauges()内から
+   setAttributeする。初期値は最初のupdateGauges()呼び出しで0になる）だけで雲の
+   濃さを表現する。opacity 0のときは背景の空色(sky)がそのまま透けて見え、
+   輪郭線だけの「曇っていない」見た目になる。
+   重要: ここにfill-opacityの値を書かないこと。CSSの宣言はSVGのpresentation
+   attribute（JSのsetAttributeが書き込む先）より常に優先されるため、ここで
+   固定値を指定すると、JS側がどんな値をsetAttributeしても描画に反映されなく
+   なる（2026-08-27に発覚したバグ。雲の実装(0d90f95)時点から存在していた） */
 #air-mass {
   fill: #ffffff;
-  fill-opacity: 0;
   stroke: #1c2541;
   stroke-width: 2;
   pointer-events: none;
