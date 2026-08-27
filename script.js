@@ -1,17 +1,17 @@
 const airMass = document.getElementById("air-mass");
-const thermometerFill = document.getElementById("thermometer-fill");
-const capacityFill = document.getElementById("capacity-fill");
-const heldMarker = document.getElementById("held-marker");
 const tempValueEl = document.getElementById("temp-value");
-const heldValueEl = document.getElementById("held-value");
-const capacityValueEl = document.getElementById("capacity-value");
+const tempStripFill = document.getElementById("temp-strip-fill");
 const heightValueEl = document.getElementById("height-value");
+const vaporFill = document.getElementById("vapor-fill");
+const vaporExcessBand = document.getElementById("vapor-excess-band");
+const vaporCapLine = document.getElementById("vapor-cap-line");
+const vaporCapLabel = document.getElementById("vapor-cap-label");
+const excessValueEl = document.getElementById("excess-value");
 const legendEl = document.getElementById("legend");
 const distanceLever = document.getElementById("distance-lever");
 const distanceLeverFill = document.getElementById("distance-lever-fill");
 const distanceLeverHandle = document.getElementById("distance-lever-handle");
 const distanceLeverCaptionEl = document.getElementById("distance-lever-caption");
-const droplets = Array.from(document.querySelectorAll(".droplet"));
 const liftArrows = Array.from(document.querySelectorAll(".lift-arrow"));
 const LIFT_ARROW_OFFSETS = [
   [0, 34],
@@ -27,8 +27,6 @@ const tutorialTextEl = document.getElementById("tutorial-text");
 const tutorialNextButton = document.getElementById("tutorial-next");
 const tutorialSkipButton = document.getElementById("tutorial-skip");
 const tutorialReplayButton = document.getElementById("tutorial-replay");
-const cupTipButton = document.getElementById("cup-tip-button");
-const cupTipText = document.getElementById("cup-tip-text");
 
 const MESSAGES = {
   // 「実験モード」という言葉が伝わらなかった非同期テストのフィードバックを受けて、
@@ -44,19 +42,22 @@ const MESSAGES = {
   // 弟さんテストで「バーが二つあるのはなぜ?」という疑問が出たこととあわせ、
   // 高さレバーを撤去し、距離レバー1本の構成に戻した（design.md参照）。
   // ○自体は直接ドラッグできず、レバー操作の結果として位置・高さが自動で決まる
-  leverCaptionDistance: "距離レバー（山までの距離を操作）",
+  //
+  // 2026-08-27: レイアウト変更（マップ内蔵ゲージ・水蒸気ゲージの反転・コップ
+  // 撤去）。「読む」計器（温度・水蒸気ゲージ）はマップの中、「触る」距離レバーは
+  // マップの外・横向きに配置し、場所・向き・色の3点で区別する。コップは雲と
+  // 同じ数字を2回描いているだけで情報を持たないため撤去し、あふれ量のg数表示を
+  // 水蒸気ゲージに追加した（design.md参照）
+  leverCaptionDistance: "距離レバー（左＝遠い　右＝山に近い）",
   leverAriaDistance: "距離レバー（山までの距離を操作します）",
   // 以下、常時表示の補足用の凡例（初回起動時の正式なチュートリアルとは別物）
   legendTitle: "記号の説明",
   legendAirMass: "○ = 空気の塊。レバー操作にあわせて位置と高さが自動で変わります（直接ドラッグはできません）。",
   legendMountain: "▲ = 山。距離レバーで○を近づけるほど、高さも自動で上がります。",
-  legendDistanceLever: "距離レバー: 上げるほど山に近づき、高さも自動で上がります。",
-  legendCloud: "○が白く曇る = 空気塊自体が、抱えきれなくなった水蒸気の量に応じて白くなります（雲ができる様子）。",
-  legendCup: "コップの水滴 = 保有水蒸気量が飽和水蒸気量を超えた分。あふれた量が多いほど、水滴が増えます。",
-  // コップ横の「？」アイコン（Tips）。実生活との接続を一言で示す
-  cupTip:
-    "夏に冷たい飲み物を入れたコップの外側が濡れるのと同じ現象です。空気中の水蒸気が、冷たいものに触れて水滴になっています。",
-  cupTipButtonLabel: "豆知識を見る",
+  legendDistanceLever: "マップ下の横向きのレバー: 右へ動かすほど山に近づき、高さも自動で上がります。",
+  legendVaporGauge:
+    "マップ内の水蒸気ゲージ: 塗り＝保有水蒸気量（固定）、点線＝飽和水蒸気量（気温が下がると降りてきます）。点線が塗りより下に来た分を、白抜き＋輪郭線で「あふれ」として示します。",
+  legendCloud: "○が白く曇る = あふれた水蒸気の量に応じて、空気塊自体が白くなります（雲ができる様子）。",
   // 変化ログ（因果を段階表示するテキスト）。数値を埋め込むため関数にしているが、
   // 文言はすべてここに集約する（コード中に日本語を散らさない）
   changeLogTitle: "変化ログ",
@@ -66,15 +67,11 @@ const MESSAGES = {
   logTempRise: (from, to) => `→ 気温が${from}℃から${to}℃に上がりました`,
   logCapacityDrop: (from, to) => `→ 抱えられる水蒸気の量が${from}g/m³から${to}g/m³に減りました`,
   logCapacityRise: (from, to) => `→ 抱えられる水蒸気の量が${from}g/m³から${to}g/m³に増えました`,
-  // 「高さを操作しただけでコップが濡れるのは因果が飛躍している」という指摘を受け、
-  // コップの水滴だと明示する文言にしている（コップの水滴は空気塊の状態をそのまま映しているため）
-  logCondensationStart: "→ 水蒸気を抱えきれなくなり、コップに水滴が現れました",
-  logCondensationEnd: "→ 水蒸気の量が抱えられる量を下回り、コップの水滴が消えました",
-  logCondensationMore: "→ 抱えきれない水蒸気の量が増え、コップの水滴が増えました",
-  logCondensationLess: "→ 抱えきれない水蒸気の量が減り、コップの水滴も減りました",
-  logCondensationStillRoom: "→ まだ水蒸気を抱えられるので、コップに水滴はついていません",
-  // 雲（空気塊自体が白く曇る演出）用の変化ログ。コップの水滴と違い、あふれた
-  // その場（空気塊）で起きる現象なので、コップより先に表示する
+  // コップ撤去にともない、あふれ量の増減も「雲」の言葉だけで語る（同じ事象を
+  // 2つの表現で2回言わない。design.md「端の小道具：汗をかくコップ」参照）
+  logExcessMore: "→ あふれた水蒸気の量が増えました",
+  logExcessLess: "→ あふれた水蒸気の量が減りました",
+  logExcessStillRoom: "→ まだ水蒸気を抱えられるので、あふれていません",
   logCloudStart: "→ 水蒸気を抱えきれなくなり、雲ができました",
   logCloudEnd: "→ 水蒸気の量が抱えられる量を下回り、雲が消えました",
   // あふれ量が最大に達したときだけの一言。「雲ができる=雨が降る」という誤った
@@ -115,8 +112,22 @@ const MIN_CAPACITY = 0.1; // saturationVaporAmount()が返す最小値（低温�
 const TEMP_MIN = -10;
 const TEMP_MAX = 20;
 const VAPOR_MAX = 16;
-const GAUGE_TRACK_TOP = 20;
-const GAUGE_TRACK_HEIGHT = 210;
+
+// 水蒸気ゲージ（マップ内、<g transform>でオフセットするローカル座標系）のトラック寸法
+const VAPOR_TRACK_TOP = 0;
+const VAPOR_TRACK_HEIGHT = 210;
+
+// 気温の横帯（マップ左上の情報パネル内）の幅
+const TEMP_STRIP_WIDTH = 76;
+
+// 距離レバー（マップ外、横向き）のトラック寸法。cyは横向きなので常に一定
+// （index.html側の初期値のまま動かさない）
+const LEVER_TRACK_X = 4;
+const LEVER_TRACK_WIDTH = 392;
+
+// 雲の段階数。旧実装ではコップの水滴8個の並びと1:1対応させていたが、コップ撤去後も
+// 変化ログのしきい値との対応を変えないため、同じ段階数を独立した定数として残す
+const CLOUD_STEPS = 8;
 
 // 距離レバー: 山への接近で自動的に高さが上がる。距離0(山頂)で最大の高さに達し、
 // 距離レバー1本で可動域全体（水滴8個・雨のヒントまで）に届く
@@ -132,9 +143,8 @@ function clamp(value, min, max) {
 }
 
 // 値(value)を「0からmaxまでを均等にstepCount段階に分けたとき、何段階目まで表示するか」に
-// 変換する汎用ロジック。コップの水滴のように「あふれ量に応じて複数の見た目を段階的に見せる」
-// 演出はこの先も増える見込み（design.md想定の雲の演出など）なので、水滴専用にせず独立した
-// 関数にしている。保証する性質は次の2つ:
+// 変換する汎用ロジック。雲の段階的な曇り方（あふれ量に応じてfill-opacityを上げる）に
+// 使っている。保証する性質は次の2つ:
 // ・value > 0 なら必ず1段階目(index === 0)は表示される（あふれ始めた瞬間に何も見えない、を防ぐ）
 // ・最後の段階(index === stepCount - 1)はvalue === maxでちょうど表示される
 //   （しきい値をmaxより大きい範囲まで等分すると、最大値でも最後の段階に届かなくなるため）
@@ -176,10 +186,13 @@ function saturationVaporAmount(temp) {
 // 決め打ちにせずsaturationVaporAmount()から逆算する。水滴の個数のしきい値の基準
 const MAX_EXCESS = HELD_VAPOR - saturationVaporAmount(INITIAL_TEMP - LAPSE_RATE * MOUNTAIN_MAX_HEIGHT);
 
-function setGaugeFill(rect, ratio) {
-  const height = clamp(ratio, 0, 1) * GAUGE_TRACK_HEIGHT;
-  rect.setAttribute("y", GAUGE_TRACK_TOP + GAUGE_TRACK_HEIGHT - height);
-  rect.setAttribute("height", height);
+// 値の比率(ratio)を、縦のトラック（上端trackTop・高さtrackHeight）上での
+// 「その値を示す位置のy座標」に変換する。値が大きいほどトラック上端に近づく
+// （水蒸気ゲージの塗り上端・点線の位置の両方をこれで求める。共通なのは
+// 「値→y」という向きだけで、塗りは矩形のy/height、点線はy1/y2と使い方が
+// 違うため、setAttributeまではこの関数の外側で行う）
+function verticalFillTopY(ratio, trackTop, trackHeight) {
+  return trackTop + trackHeight - clamp(ratio, 0, 1) * trackHeight;
 }
 
 function triangleUpPoints(cx, cy) {
@@ -213,44 +226,48 @@ function updateGauges(height) {
   // 可動域でもあるため、表示の分母は常にこれでよい
   heightValueEl.textContent = Math.round((height / MOUNTAIN_MAX_HEIGHT) * HEIGHT_DISPLAY_SCALE);
   tempValueEl.textContent = temp.toFixed(1);
-  heldValueEl.textContent = HELD_VAPOR.toFixed(1);
-  capacityValueEl.textContent = capacity.toFixed(1);
 
-  setGaugeFill(thermometerFill, (temp - TEMP_MIN) / (TEMP_MAX - TEMP_MIN));
-  setGaugeFill(capacityFill, capacity / VAPOR_MAX);
+  // 気温の横帯（情報パネル内、従属表示）
+  const tempRatio = clamp((temp - TEMP_MIN) / (TEMP_MAX - TEMP_MIN), 0, 1);
+  tempStripFill.setAttribute("width", tempRatio * TEMP_STRIP_WIDTH);
 
-  const heldY =
-    GAUGE_TRACK_TOP + GAUGE_TRACK_HEIGHT - (HELD_VAPOR / VAPOR_MAX) * GAUGE_TRACK_HEIGHT;
-  heldMarker.setAttribute("y1", heldY);
-  heldMarker.setAttribute("y2", heldY);
+  // 水蒸気ゲージ（反転済み）: 塗り＝保有水蒸気量（HELD_VAPORが定数の間は見た目上
+  // 動かないが、季節スライダー実装後にHELD_VAPORが可変になっても同じ式で動くよう、
+  // 固定値扱いにせず毎回計算する）
+  const heldTopY = verticalFillTopY(HELD_VAPOR / VAPOR_MAX, VAPOR_TRACK_TOP, VAPOR_TRACK_HEIGHT);
+  vaporFill.setAttribute("y", heldTopY);
+  vaporFill.setAttribute("height", VAPOR_TRACK_TOP + VAPOR_TRACK_HEIGHT - heldTopY);
 
-  // 距離レバーの見た目は、距離自身の可動域(0〜MOUNTAIN_INFLUENCE_RADIUS)を基準に正規化する
-  // （距離が0＝山頂に近いほどレバーが上がるように、比率は反転させる）
-  const distanceRatio = 1 - clamp(currentDistance / MOUNTAIN_INFLUENCE_RADIUS, 0, 1);
-  setGaugeFill(distanceLeverFill, distanceRatio);
-  distanceLeverHandle.setAttribute(
-    "cy",
-    GAUGE_TRACK_TOP + GAUGE_TRACK_HEIGHT - distanceRatio * GAUGE_TRACK_HEIGHT
-  );
+  // 線＝飽和水蒸気量。気温が下がるほどcapacityが減り、線(y)はトラック下端へ降りてくる
+  const capLineY = verticalFillTopY(capacity / VAPOR_MAX, VAPOR_TRACK_TOP, VAPOR_TRACK_HEIGHT);
+  vaporCapLine.setAttribute("y1", capLineY);
+  vaporCapLine.setAttribute("y2", capLineY);
+  vaporCapLabel.setAttribute("y", capLineY + 3);
 
-  // 保有水蒸気量が飽和水蒸気量を超えた分だけ、コップの水滴を1つずつ増やす。
-  // 段階の割り当てはisStepVisible()に委譲する（あふれ量が0より大きければ必ず1個目が
-  // 見える／最後の水滴もMAX_EXCESS＝実際に到達しうるあふれ量の上限でちょうど出る、を保証）
-  // TODO(季節スライダー実装時): design.mdの想定では、コップは「今持ち上げている空気塊」ではなく
-  // 「季節で決まる周囲の気温・水蒸気量」に反応する独立した小道具。季節スライダーができたら、
-  // ここのHELD_VAPOR/capacityを季節ベースの値に差し替える（コップ表面温度8℃との比較に切り替える）
+  // あふれ帯: 線が塗りの上端より下に来た分（＝保有量のうち抱えきれない部分）を
+  // 白抜き＋輪郭線で示す。○が白く曇る雲の表現と同じ視覚言語にすることで、
+  // 「白い＝あふれた分＝雲になるもの」という一貫性を作る（design.md参照）
   const excess = Math.max(0, HELD_VAPOR - capacity);
-  let visibleDropletCount = 0;
-  droplets.forEach((droplet, index) => {
-    const visible = isStepVisible(excess, MAX_EXCESS, droplets.length, index);
-    droplet.classList.toggle("visible", visible);
-    if (visible) visibleDropletCount += 1;
-  });
+  const excessBandHeight = Math.max(0, capLineY - heldTopY);
+  vaporExcessBand.setAttribute("y", heldTopY);
+  vaporExcessBand.setAttribute("height", excessBandHeight);
+  excessValueEl.textContent = excess.toFixed(1);
 
-  // 雲: 新しい図形を増やさず、○自体をあふれ量に応じて段階的に白く塗る（fill-opacityを
-  // 上げる）。水滴と同じ「何段階目まで見えているか」を使うことで、コップの水滴が
-  // 1つ増えるたびに○も1段階ずつ曇る、という対応関係になる
-  airMass.setAttribute("fill-opacity", visibleDropletCount / droplets.length);
+  // 距離レバー（マップ外、横向き）の見た目は、距離自身の可動域
+  // (0〜MOUNTAIN_INFLUENCE_RADIUS)を基準に正規化する（距離が0＝山頂に近いほど
+  // 右へ、比率は反転させる）
+  const distanceRatio = 1 - clamp(currentDistance / MOUNTAIN_INFLUENCE_RADIUS, 0, 1);
+  distanceLeverFill.setAttribute("width", distanceRatio * LEVER_TRACK_WIDTH);
+  distanceLeverHandle.setAttribute("cx", LEVER_TRACK_X + distanceRatio * LEVER_TRACK_WIDTH);
+
+  // 雲: ○自体をあふれ量に応じて段階的に白く塗る（fill-opacityを上げる）。
+  // TODO(季節スライダー実装時): 季節ごとの保有水蒸気量に応じてHELD_VAPORを
+  // 差し替える（design.md「季節スライダー」参照）
+  let visibleStepCount = 0;
+  for (let i = 0; i < CLOUD_STEPS; i++) {
+    if (isStepVisible(excess, MAX_EXCESS, CLOUD_STEPS, i)) visibleStepCount += 1;
+  }
+  airMass.setAttribute("fill-opacity", visibleStepCount / CLOUD_STEPS);
 }
 
 const CHANGE_LOG_MIN_HEIGHT_DELTA = 3; // これ未満の高さ変化はログに残さない
@@ -288,24 +305,19 @@ function buildHeightChangeLog(beforeHeight, afterHeight) {
       : MESSAGES.logCapacityRise(beforeCapacity.toFixed(1), afterCapacity.toFixed(1))
   );
 
-  // 雲（空気塊自体が曇る演出）は、あふれが起きたその場で直接起こる現象なので、
-  // コップの水滴（間接的な言い換え）より先に表示する
+  // 雲の発生/消滅と「あふれ」は同じ事象を2回言わない（コップ撤去にともない統合。
+  // design.md「端の小道具：汗をかくコップ」参照）。しきい値をまたぐ瞬間は雲の
+  // 発生/消滅だけを報告し、またがない間の増減・据え置きだけをあふれ量で報告する
   if (isNearZero(beforeExcess) && !isNearZero(afterExcess)) {
     lines.push(MESSAGES.logCloudStart);
   } else if (!isNearZero(beforeExcess) && isNearZero(afterExcess)) {
     lines.push(MESSAGES.logCloudEnd);
-  }
-
-  if (isNearZero(beforeExcess) && !isNearZero(afterExcess)) {
-    lines.push(MESSAGES.logCondensationStart);
-  } else if (!isNearZero(beforeExcess) && isNearZero(afterExcess)) {
-    lines.push(MESSAGES.logCondensationEnd);
   } else if (afterExcess > beforeExcess) {
-    lines.push(MESSAGES.logCondensationMore);
+    lines.push(MESSAGES.logExcessMore);
   } else if (afterExcess < beforeExcess) {
-    lines.push(MESSAGES.logCondensationLess);
+    lines.push(MESSAGES.logExcessLess);
   } else if (isNearZero(afterExcess)) {
-    lines.push(MESSAGES.logCondensationStillRoom);
+    lines.push(MESSAGES.logExcessStillRoom);
   }
 
   // あふれ量が最大に達した瞬間だけ、雨との関係を一言添える（「雲ができる=必ず雨」という
@@ -454,17 +466,19 @@ function toSvgPoint(svgEl, clientX, clientY) {
 }
 
 // レバーの配線（pointerのキャプチャ／解放、○のdraggingクラスの付け外し）だけを
-// まとめる。ドラッグ中に何の値をどう変えるかは呼び出し側のonStart/onMove/onEndに委ねる
+// まとめる。ドラッグ中に何の値をどう変えるかは呼び出し側のonStart/onMove/onEndに委ねる。
+// 距離レバーは横向き（design.md「設計の経緯（2026-08-27）」レイアウト変更参照）なので
+// x座標を渡す
 function bindLeverDrag(leverEl, { onStart, onMove, onEnd }) {
   leverEl.addEventListener("pointerdown", (event) => {
     leverEl.setPointerCapture(event.pointerId);
     const svgPoint = toSvgPoint(leverEl, event.clientX, event.clientY);
-    onStart(svgPoint.y);
+    onStart(svgPoint.x);
     airMass.classList.add("dragging");
   });
   leverEl.addEventListener("pointermove", (event) => {
     const svgPoint = toSvgPoint(leverEl, event.clientX, event.clientY);
-    onMove(svgPoint.y);
+    onMove(svgPoint.x);
   });
   function end(event) {
     if (leverEl.hasPointerCapture(event.pointerId)) {
@@ -477,18 +491,19 @@ function bindLeverDrag(leverEl, { onStart, onMove, onEnd }) {
   leverEl.addEventListener("pointercancel", end);
 }
 
-// 距離レバー: 「山までの距離」を操作する。上に動かすほど距離が縮む＝山に近づく。
+// 距離レバー: 「山までの距離」を操作する。右に動かすほど距離が縮む＝山に近づく
+// （○が右へ動くのと同じ向きにして、指の動きと見た目の動きを一致させる）。
 // 距離が変わるたびに、山への接近で自動的に決まる高さ(heightFromDistance)へ
 // currentHeightを同期させる
 let distanceDragStart = null;
 bindLeverDrag(distanceLever, {
-  onStart: (svgY) => {
-    distanceDragStart = { svgY, value: currentDistance, heightBefore: currentHeight };
+  onStart: (svgX) => {
+    distanceDragStart = { svgX, value: currentDistance, heightBefore: currentHeight };
   },
-  onMove: (svgY) => {
+  onMove: (svgX) => {
     if (!distanceDragStart) return;
-    const deltaY = distanceDragStart.svgY - svgY;
-    const deltaDistance = deltaY * (MOUNTAIN_INFLUENCE_RADIUS / GAUGE_TRACK_HEIGHT);
+    const deltaX = svgX - distanceDragStart.svgX;
+    const deltaDistance = deltaX * (MOUNTAIN_INFLUENCE_RADIUS / LEVER_TRACK_WIDTH);
     currentDistance = clamp(distanceDragStart.value - deltaDistance, 0, MOUNTAIN_INFLUENCE_RADIUS);
     currentHeight = heightFromDistance(currentDistance);
     positionAirMass(currentDistance);
@@ -509,8 +524,8 @@ function renderLegend() {
       <li>${MESSAGES.legendAirMass}</li>
       <li>${MESSAGES.legendMountain}</li>
       <li>${MESSAGES.legendDistanceLever}</li>
+      <li>${MESSAGES.legendVaporGauge}</li>
       <li>${MESSAGES.legendCloud}</li>
-      <li>${MESSAGES.legendCup}</li>
     </ul>
   `;
 }
@@ -596,15 +611,6 @@ tutorialNextButton.addEventListener("click", () => {
 tutorialSkipButton.addEventListener("click", endTutorial);
 tutorialReplayButton.addEventListener("click", startTutorial);
 tutorialReplayButton.textContent = MESSAGES.tutorialReplay;
-
-// コップ横の「？」（Tips）: タップで実生活接続の一言を開閉する
-cupTipText.textContent = MESSAGES.cupTip;
-cupTipButton.setAttribute("aria-label", MESSAGES.cupTipButtonLabel);
-cupTipButton.addEventListener("click", () => {
-  const nowHidden = !cupTipText.hidden;
-  cupTipText.hidden = nowHidden;
-  cupTipButton.setAttribute("aria-expanded", String(!nowHidden));
-});
 
 window.addEventListener("resize", () => {
   if (!tutorialOverlay.hidden && tutorialHighlightedEl) {

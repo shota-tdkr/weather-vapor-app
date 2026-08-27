@@ -45,51 +45,76 @@ body {
   color: #eaeaea;
 }
 
+/* レイアウト変更（2026-08-27）: マップ・レバー・季節スライダー枠を縦1列に積む。
+   「読む」計器（温度・水蒸気ゲージ）はマップ内蔵、「触る」距離レバーはマップ外・
+   横向きにして、場所・向き・色の3点で区別する（design.md「UIの課題」参照） */
 .app-layout {
   display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  justify-content: center;
-  gap: 2rem;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 #map {
   display: block;
   width: 100%;
-  max-width: 480px;
-  flex: 1 1 360px;
+  max-width: 600px;
 }
 
-/* PC表示ではただの透明なラッパー（レイアウトに影響させない）。
-   スマホ用の折り返し先はメディアクエリ側で上書きする */
-.results-panel {
-  display: contents;
+/* マップ内の計器（情報パネル・水蒸気ゲージ）を載せる背景板。
+   sky(#a3cfeb)の上でも文字と縦線が読めるよう、地の色を挟む */
+.panel-plate {
+  fill: #eaeaea;
+  fill-opacity: 0.85;
+  stroke: #1c2541;
+  stroke-width: 1.5;
 }
 
-.gauges {
-  display: flex;
-  gap: 2rem;
-  flex: 0 0 auto;
+.gauge-label {
+  font-size: 10px;
+  fill: #1c2541;
 }
 
-.gauge {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.4rem;
-  font-size: 0.9rem;
+.readout {
+  font-size: 11px;
+  fill: #1c2541;
 }
 
-.gauge svg {
-  height: 260px;
+.readout-small {
+  font-size: 9px;
+  fill: #1c2541;
 }
 
-.thermometer {
-  width: 50px;
+.readout-strong {
+  font-size: 12px;
+  fill: #1c2541;
+  font-weight: bold;
 }
 
-.vapor-gauge {
-  width: 70px;
+.temp-strip-bg {
+  fill: none;
+  stroke: #1c2541;
+  stroke-width: 1.5;
+}
+
+.temp-strip-fill {
+  fill: #1c2541;
+}
+
+/* 水蒸気ゲージの反転（design.md参照）: 塗り=保有水蒸気量（固定）、
+   点線=飽和水蒸気量（可変）。線が塗りの上端より下に来た分を、この白抜き＋
+   輪郭線で示す。○が白く曇る雲の表現と同じ白を使うことで、色数を増やさずに
+   「白＝あふれた分」という意味を繋げる */
+.excess-band {
+  fill: #ffffff;
+  stroke: #1c2541;
+  stroke-width: 1.5;
+}
+
+.vapor-cap-line {
+  stroke: #1c2541;
+  stroke-width: 3;
+  stroke-dasharray: 5 3;
 }
 
 /* 空の背景色。○の白いfill（雲）が#eaeaea背景だとほぼ見分けられなかったため追加
@@ -149,32 +174,25 @@ body {
   }
 }
 
-/* 距離レバーを収める箱（かつては高さレバーと横に並べていたが、距離レバー1本の
-   構成に変更したため現在は1本のみ。design.md参照） */
+/* 距離レバー: マップ外・横向き・全幅。「触るもの」は場所（マップの外）・
+   向き（横）・つまみの3点で「読むもの」（マップ内の縦の計器）と区別する
+   （design.md「UIの課題」参照） */
 .levers {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 1.5rem;
-  flex: 0 0 auto;
-}
-
-.lever {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.4rem;
-  font-size: 0.8rem;
-  flex: 0 0 auto;
+  width: 100%;
+  max-width: 600px;
+  margin: 0.5rem auto 0;
 }
 
 .lever-caption {
+  margin: 0 0 0.35rem;
+  font-size: 0.85rem;
   line-height: 1.3;
 }
 
 .lever-svg {
-  width: 50px;
-  height: 260px;
+  display: block;
+  width: 100%;
+  height: 40px;
   touch-action: none;
 }
 
@@ -200,87 +218,32 @@ body {
   fill: #1c2541;
 }
 
-.gauge-marker {
+/* 季節スライダーの将来枠（今回は未実装）。距離レバーと同じ横向き・全幅の
+   系統として直下に確保する（design.md「季節スライダー」参照） */
+.season-slot {
+  width: 100%;
+  max-width: 600px;
+  margin: 0.6rem auto 0;
+  opacity: 0.55;
+}
+
+.season-track-h {
+  display: block;
+  width: 100%;
+  height: 26px;
+  pointer-events: none;
+}
+
+.season-placeholder {
+  fill: none;
   stroke: #1c2541;
-  stroke-width: 3;
+  stroke-width: 1.5;
   stroke-dasharray: 4 3;
 }
 
-.cup-panel {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.4rem;
-  font-size: 0.8rem;
-  flex: 0 0 auto;
-}
-
-.cup {
-  width: 100px;
-  height: 140px;
-}
-
-.cup-liquid {
-  fill: #1c2541;
-}
-
-.cup-outline {
-  fill: none;
-  stroke: #1c2541;
-  stroke-width: 3;
-}
-
-.droplet {
-  fill: #1c2541;
-  opacity: 0;
-  transition: opacity 0.3s;
-}
-
-.droplet.visible {
-  opacity: 1;
-}
-
-.cup-caption-row {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.cup-caption {
-  margin: 0;
-}
-
-.tip-button {
-  font-family: inherit;
-  font-size: 0.8rem;
-  width: 1.6rem;
-  height: 1.6rem;
-  flex: 0 0 auto;
-  border: 2px solid #1c2541;
-  border-radius: 50%;
-  background: #eaeaea;
-  color: #1c2541;
-  cursor: pointer;
-}
-
-.tip-button:hover {
-  background: #1c2541;
-  color: #eaeaea;
-}
-
-.tip-text {
-  max-width: 220px;
-  margin: 0.6rem 0 0;
-  padding: 0.6rem 0.8rem;
-  border: 2px solid #1c2541;
-  border-radius: 8px;
-  font-size: 0.8rem;
-  text-align: left;
-}
-
 .change-log {
-  max-width: 500px;
-  margin: 2rem auto 0;
+  max-width: 600px;
+  margin: 1.5rem auto 0;
   padding: 0.8rem 1rem;
   border: 2px solid #1c2541;
   border-radius: 6px;
@@ -319,8 +282,8 @@ body {
 }
 
 .legend {
-  max-width: 500px;
-  margin: 2rem auto 0;
+  max-width: 600px;
+  margin: 1.5rem auto 0;
   padding: 0.8rem 1rem;
   border: 1px dashed #1c2541;
   border-radius: 6px;
@@ -410,66 +373,15 @@ body {
 }
 
 /* ==== スマホ表示（横幅が狭い画面）====
-   通常の縦積みだと、レバーを操作した結果（温度・水蒸気量・水滴）を見るのに
-   スクロールが必要になる。山・空気塊・レバー自体は縮小せず、結果パネル
-   （gauges＋cup-panel）だけを最上部に固定して、スクロールなしで常に
-   見えるようにする */
+   ゲージがマップ内蔵になったことで、マップとレバーだけで「操作→結果」が
+   1画面に収まるようになった（旧resultsPanelのsticky表示は不要になったため
+   廃止）。狭い画面ではbodyのpaddingが横幅を圧迫するため縮める */
 @media (max-width: 700px) {
+  body {
+    padding: 1.25rem 0.75rem;
+  }
+
   .app-layout {
-    gap: 1rem;
-  }
-
-  .results-panel {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    align-items: flex-start;
-    gap: 0.3rem 1rem;
-    order: -1;
-    width: 100%;
-    position: sticky;
-    top: 0;
-    z-index: 5;
-    margin-bottom: 0.4rem;
-    padding: 0.4rem 0.6rem 0.3rem;
-    background: #eaeaea;
-    border-bottom: 2px solid #1c2541;
-  }
-
-  .results-panel .gauges {
-    gap: 0.8rem;
-  }
-
-  .results-panel .gauge svg {
-    height: 56px;
-    width: auto;
-  }
-
-  .results-panel .gauge,
-  .results-panel .cup-panel {
-    gap: 0.15rem;
-    font-size: 0.7rem;
-  }
-
-  /* デフォルトのp要素の上下マージンがそのまま残ると、狭い結果パネルの中で
-     グラフィック本体より文字の余白の方が高さを占めてしまうため、ここだけ詰める */
-  .results-panel p {
-    margin: 0;
-    line-height: 1.3;
-  }
-
-  .results-panel .cup {
-    width: 40px;
-    height: 56px;
-  }
-
-  .results-panel .cup-caption {
-    display: none;
-  }
-
-  .results-panel .tip-button {
-    width: 1.3rem;
-    height: 1.3rem;
-    font-size: 0.7rem;
+    gap: 0.4rem;
   }
 }
