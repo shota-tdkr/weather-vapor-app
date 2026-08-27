@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>天気のたね</title>
   <!-- ?v=N はキャッシュ対策。style.css/script.js を編集したら両方の番号を1つ上げる -->
-  <link rel="stylesheet" href="./style.css?v=27">
+  <link rel="stylesheet" href="./style.css?v=28">
 </head>
 <body>
   <h1 class="app-title">天気のたね</h1>
@@ -29,17 +29,16 @@
         <polygon points="150,280 280,280 215,120" />
       </g>
 
-      <!-- 空気の塊。中心の基本円(air-mass-base)は常時表示（あふれ量0のときは
-           これまでどおりただの○）。周囲4つの塊(air-mass-puff)は、あふれ量が
-           増えるにつれて1つずつ浮かび上がり、もくもくした雲の形に育っていく
-           （design.md参照）。位置は#air-massグループのtransformで一括して動かす。
-           data-far-x/yは距離レバーが最大（山から最も遠い）ときの初期配置 -->
+      <!-- 空気の塊。○(air-mass-base)は雲ができても消えず常にそのまま残る
+           （理科的にも、空気塊が消えて雲になるわけではなく、その中の水蒸気の
+           一部が水滴になって雲を作るため）。あふれ量が0より大きくなったら、
+           ○の上に雲(air-mass-cloud、1本のpath)が現れ、あふれ量に応じて
+           段階的に大きく育っていく（design.md参照）。位置は#air-massグループの
+           transformで○・雲まとめて動かす。data-far-x/yは距離レバーが最大
+           （山から最も遠い）ときの初期配置 -->
       <g id="air-mass" data-far-x="60" data-far-y="250">
-        <circle class="air-mass-puff" cx="0" cy="12" r="15" />
-        <circle class="air-mass-puff" cx="-16" cy="2" r="13" />
-        <circle class="air-mass-puff" cx="16" cy="2" r="13" />
-        <circle class="air-mass-puff" cx="0" cy="-14" r="14" />
-        <circle id="air-mass-base" cx="0" cy="0" r="22" fill-opacity="0" />
+        <circle id="air-mass-base" cx="0" cy="0" r="22" />
+        <path id="air-mass-cloud" transform="translate(0,-10)" opacity="0" />
       </g>
 
       <!-- 上昇エフェクト（高さが上がった瞬間だけ、山と同じ△の形でフワッと浮かぶ） -->
@@ -124,6 +123,6 @@
     </div>
   </div>
 
-  <script src="./script.js?v=27"></script>
+  <script src="./script.js?v=28"></script>
 </body>
 </html>

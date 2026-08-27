@@ -134,8 +134,8 @@ body {
 
 /* ○（空気の塊）はレバー操作の結果として自動で動く表示専用のグループ（直接
    ドラッグはしない）。位置はtransform(translate)で持たせる（cx/cyではなく。
-   中の基本円・雲の塊がそれぞれ独立した円要素のため、グループ全体をまとめて
-   動かす必要がある）。位置ジャンプをなめらかに見せるためのトランジション。
+   中の○本体・雲がそれぞれ独立した要素のため、グループ全体をまとめて動かす
+   必要がある）。位置ジャンプをなめらかに見せるためのトランジション。
    ドラッグ中は#air-mass.draggingで無効化し、指に瞬時に追従させる（レバー
    操作の1:1追従が崩れないようにするため） */
 #air-mass {
@@ -147,30 +147,34 @@ body {
   transition: none;
 }
 
-#air-mass.dragging #air-mass-base,
-#air-mass.dragging .air-mass-puff {
+#air-mass.dragging #air-mass-cloud {
   transition: none;
 }
 
-/* 空気の塊を構成する円は全て白塗り＋濃紺の輪郭線で統一する。
-   fillは白固定にし、あふれ量に応じたopacity/fill-opacity（JS側で
-   updateGauges()内からsetAttributeする。初期値は最初のupdateGauges()呼び出しで
-   決まる）だけで雲の濃さ・大きさを表現する。opacity 0のときは背景の空色(sky)が
-   そのまま透けて見え、輪郭線だけの「曇っていない」見た目になる。
-   重要: ここにfill-opacity/opacityの値を書かないこと。CSSの宣言はSVGの
-   presentation attribute（JSのsetAttributeが書き込む先）より常に優先されるため、
-   ここで固定値を指定すると、JS側がどんな値をsetAttributeしても描画に反映されなく
-   なる（2026-08-27に発覚したバグ。雲の実装(0d90f95)時点から存在していた） */
+/* ○本体。雲ができても消えず常にそのまま残る（2026-08-27改訂。理科的にも、
+   空気塊が消えて雲になるわけではなく、その中の水蒸気の一部が水滴になって
+   雲を作るため。design.md参照）。あふれ量に左右されない固定の見た目なので、
+   ここに値を書いてよい（JS側からは一切setAttributeしない要素）。
+   fillはtransparent(none)ではなく.skyと同じ色で塗る: ○は距離レバーで
+   斜面上を移動するため山（濃紺）と重なる瞬間があり、fill:noneだと輪郭線
+   ごと山の色に溶けて見えなくなってしまう（2026-08-27発覚）。sky色なら
+   空の上では透明に見えるのと同じ効果を保ちつつ、山の上でも判別できる */
 #air-mass-base {
-  fill: #ffffff;
+  fill: #a3cfeb;
   stroke: #1c2541;
   stroke-width: 2;
-  transition: fill-opacity 0.3s ease;
 }
 
-/* 周囲4つの「もくもく」した塊。あふれ量が増えるにつれて1つずつopacityが
-   0→1になり、雲がもくもくと育っていくように見せる（design.md参照） */
-.air-mass-puff {
+/* 雲（1本のpathで表現。円を複数重ねると内側にも輪郭線が出て「丸の集合」に
+   見えてしまうため採用しなかった。design.md参照）。あふれ量が増えるにつれて
+   ○の上に現れ、段階的に大きく育っていく。
+   重要: ここにopacity/dの値を書かないこと。CSSの宣言はSVGのpresentation
+   attribute（JSのsetAttributeが書き込む先）より常に優先されるため、
+   ここで固定値を指定すると、JS側がどんな値をsetAttributeしても描画に反映
+   されなくなる（2026-08-27に発覚したバグ。雲の実装(0d90f95)時点から
+   存在していた。opacityでも同じ問題を起こさないよう、値そのものは
+   書かずtransitionだけ指定する） */
+#air-mass-cloud {
   fill: #ffffff;
   stroke: #1c2541;
   stroke-width: 2;

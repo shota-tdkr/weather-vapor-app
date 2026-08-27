@@ -1,6 +1,5 @@
 const airMass = document.getElementById("air-mass");
-const airMassBase = document.getElementById("air-mass-base");
-const airMassPuffs = Array.from(document.querySelectorAll(".air-mass-puff"));
+const airMassCloud = document.getElementById("air-mass-cloud");
 const tempValueEl = document.getElementById("temp-value");
 const tempStripFill = document.getElementById("temp-strip-fill");
 const heightValueEl = document.getElementById("height-value");
@@ -161,9 +160,19 @@ const TEMP_STRIP_WIDTH = 76;
 const LEVER_TRACK_X = 4;
 const LEVER_TRACK_WIDTH = 392;
 
-// 雲の段階数。旧実装ではコップの水滴8個の並びと1:1対応させていたが、コップ撤去後も
-// 変化ログのしきい値との対応を変えないため、同じ段階数を独立した定数として残す
-const CLOUD_STEPS = 8;
+// 雲の段階数。CLOUD_PATHSの要素数と一致させる
+const CLOUD_STEPS = 4;
+
+// 雲の形（1本のpathで表現。円を複数重ねると内側にも輪郭線が出て「丸の集合」に
+// 見えてしまうため、あふれ量の各段階ごとに手描きの雲の輪郭を1つ用意し、
+// 段階が変わるたびにd属性ごと差し替える。同じアンカー点を基準にスケールして
+// 作っているため、段階が変わっても雲の底の位置はほぼ揃う（design.md参照）
+const CLOUD_PATHS = [
+  "M -12.4,-2.4 C -13.2,-5.6 -11.2,-8.8 -8.0,-8.8 C -7.6,-12.8 -2.0,-14.4 1.2,-12.0 C 2.8,-15.2 8.4,-14.8 9.6,-11.2 C 12.4,-10.8 13.2,-6.4 10.8,-4.0 C 12.4,-2.4 11.6,0.8 8.4,0.8 L -10.0,0.8 C -13.2,0.8 -14.0,-0.8 -12.4,-2.4 Z",
+  "M -18.1,-3.7 C -19.4,-8.7 -16.3,-13.6 -11.3,-13.6 C -10.7,-19.8 -2.0,-22.3 3.0,-18.6 C 5.4,-23.6 14.1,-22.9 16.0,-17.4 C 20.3,-16.7 21.6,-9.9 17.8,-6.2 C 20.3,-3.7 19.1,1.2 14.1,1.2 L -14.4,1.2 C -19.4,1.2 -20.6,-1.2 -18.1,-3.7 Z",
+  "M -23.3,-4.9 C -25.0,-11.5 -20.9,-18.0 -14.3,-18.0 C -13.5,-26.2 -2.0,-29.5 4.6,-24.6 C 7.8,-31.2 19.3,-30.3 21.8,-23.0 C 27.5,-22.1 29.2,-13.1 24.2,-8.2 C 27.5,-4.9 25.9,1.6 19.3,1.6 L -18.4,1.6 C -25.0,1.6 -26.6,-1.6 -23.3,-4.9 Z",
+  "M -28.0,-6.0 C -30.0,-14.0 -25.0,-22.0 -17.0,-22.0 C -16.0,-32.0 -2.0,-36.0 6.0,-30.0 C 10.0,-38.0 24.0,-37.0 27.0,-28.0 C 34.0,-27.0 36.0,-16.0 30.0,-10.0 C 34.0,-6.0 32.0,2.0 24.0,2.0 L -22.0,2.0 C -30.0,2.0 -32.0,-2.0 -28.0,-6.0 Z",
+];
 
 // 距離レバー: 山への接近で自動的に高さが上がる。距離0(山頂)で最大の高さに達し、
 // 距離レバー1本で可動域全体（雲が最大の濃さになり、雨のヒントが出るところまで）に届く
@@ -303,24 +312,18 @@ function updateGauges(height) {
   distanceLeverFill.setAttribute("width", distanceRatio * LEVER_TRACK_WIDTH);
   distanceLeverHandle.setAttribute("cx", LEVER_TRACK_X + distanceRatio * LEVER_TRACK_WIDTH);
 
-  // 雲: ○を、あふれ量に応じてもくもくした雲の形に段階的に変化させる。
-  // 基本円(air-mass-base)は従来どおりfill-opacityを連続的に上げていく。
-  // 周囲4つの塊(air-mass-puff)は、cloudRatio(0〜1)を4等分した区間ごとに
-  // 1つずつ順番にopacity(輪郭線ごと)が0→1になり、雲が育っていくように見せる。
-  // あふれ量0(cloudRatio=0)のときは全員opacity 0で、これまでどおりただの
-  // ○のまま（design.md参照。以前は「白く曇るだけの円」で雲だと伝わりにくく、
-  // 凡例の説明文に頼らざるを得なかったための変更）
+  // 雲: ○(air-mass-base)自体は常にそのまま残し、あふれ量に応じて○の上に
+  // 雲(air-mass-cloud)が現れ、段階的に大きく育っていく。理科的にも、空気塊が
+  // 消えて雲になるわけではなく、その中の水蒸気の一部が水滴になって雲を作る
+  // ため（design.md参照）。あふれ量0のときは雲を非表示のままにする
   let visibleStepCount = 0;
   for (let i = 0; i < CLOUD_STEPS; i++) {
     if (isStepVisible(excess, currentMaxExcess, CLOUD_STEPS, i)) visibleStepCount += 1;
   }
-  const cloudRatio = visibleStepCount / CLOUD_STEPS;
-  airMassBase.setAttribute("fill-opacity", cloudRatio);
-  const puffSegment = 1 / airMassPuffs.length;
-  airMassPuffs.forEach((puff, index) => {
-    const puffOpacity = clamp((cloudRatio - index * puffSegment) / puffSegment, 0, 1);
-    puff.setAttribute("opacity", puffOpacity);
-  });
+  if (visibleStepCount > 0) {
+    airMassCloud.setAttribute("d", CLOUD_PATHS[visibleStepCount - 1]);
+  }
+  airMassCloud.setAttribute("opacity", visibleStepCount > 0 ? 1 : 0);
 }
 
 const CHANGE_LOG_MIN_HEIGHT_DELTA = 3; // これ未満の高さ変化はログに残さない
