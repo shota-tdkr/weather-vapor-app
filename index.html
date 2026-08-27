@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>天気のたね</title>
   <!-- ?v=N はキャッシュ対策。style.css/script.js を編集したら両方の番号を1つ上げる -->
-  <link rel="stylesheet" href="./style.css?v=25">
+  <link rel="stylesheet" href="./style.css?v=26">
 </head>
 <body>
   <h1 class="app-title">天気のたね</h1>
@@ -14,9 +14,9 @@
     <button id="tutorial-replay" class="tutorial-replay" type="button"></button>
   </div>
   <main class="app-layout">
-    <!-- 「読む」計器（温度・水蒸気ゲージ）はマップの中、「触る」距離レバーはマップの
-         外・横向きに置く。場所・向き・色の3つで区別をつけ、凡例に頼らずに済ませる
-         （design.md「UIの課題」参照。弟さんの「バーが二つあるのはなぜ?」への対応） -->
+    <!-- 「読む」計器（温度・水蒸気ゲージ）はマップの中、「触る」レバー（距離・水蒸気の量）
+         はマップの外・横向きに置く。場所・向き・色の3つで区別をつけ、凡例に頼らずに
+         済ませる（design.md「UIの課題」参照。弟さんの「バーが二つあるのはなぜ?」への対応） -->
     <svg id="map" viewBox="0 0 400 320" xmlns="http://www.w3.org/2000/svg" aria-label="山と空気の塊、高さ・気温の情報パネル、水蒸気ゲージ">
       <!-- 空（雲＝○の白いfillが背景と見分けられるよう、薄い青系の色を敷く） -->
       <rect class="sky" x="0" y="0" width="400" height="320" />
@@ -49,12 +49,13 @@
         <rect id="temp-strip-fill" class="temp-strip-fill" x="96" y="24" width="0" height="10" rx="5" />
       </g>
 
-      <!-- 水蒸気ゲージ（主役、反転済み）: 塗り＝保有水蒸気量（9.4固定・動かない）、
-           点線＝飽和水蒸気量（気温が下がると降りてくる）。点線が塗りより下に来た分を
-           白抜き＋輪郭線で示す（○が白く曇る雲の表現と同じ視覚言語。design.md参照） -->
+      <!-- 水蒸気ゲージ（主役、反転済み）: 塗り＝水蒸気の量（高さを変えても動かないが、
+           下の水蒸気の量スライダーで4段階に切り替えられる）、点線＝飽和水蒸気量
+           （気温が下がると降りてくる）。点線が塗りより下に来た分を白抜き＋輪郭線で
+           示す（○が白く曇る雲の表現と同じ視覚言語。design.md参照） -->
       <g class="vapor-panel" transform="translate(296,20)">
         <rect class="panel-plate" x="-10" y="-20" width="96" height="270" rx="6" />
-        <text class="gauge-label" x="26" y="-6">水蒸気</text>
+        <text class="gauge-label" x="26" y="-6">水蒸気の量</text>
         <rect class="gauge-track" x="0" y="0" width="52" height="210" />
         <rect id="vapor-fill" class="gauge-fill" x="0" y="0" width="52" height="0" />
         <rect id="vapor-excess-band" class="excess-band" x="0" y="0" width="52" height="0" />
@@ -76,13 +77,21 @@
       </svg>
     </div>
 
-    <!-- 季節スライダーの将来枠（今回は未実装）。距離レバーと同じ「横向き・マップ外」の
-         系統として直下に確保しておく（design.md「季節スライダー」参照） -->
-    <div class="season-slot">
-      <p class="lever-caption">季節スライダー（準備中）</p>
-      <svg class="season-track-h" viewBox="0 0 400 26" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-        <rect class="season-placeholder" x="4" y="6" width="392" height="14" rx="7" />
+    <!-- 水蒸気の量スライダー: 距離レバーと同じ「触るもの」の系統（マップ外・横向き・
+         全幅）で直下に配置する。4段階で、教科書の対応表の値をそのまま水蒸気の量として
+         使う（design.md「水蒸気の量スライダー」参照） -->
+    <div class="levers">
+      <p id="vapor-level-caption" class="lever-caption"></p>
+      <svg id="vapor-level-lever" class="lever-svg" viewBox="0 0 400 40" xmlns="http://www.w3.org/2000/svg" aria-label="水蒸気の量スライダー">
+        <rect class="gauge-track" x="4" y="13" width="392" height="14" rx="7" />
+        <rect id="vapor-level-fill" class="gauge-fill" x="4" y="13" width="0" height="14" rx="7" />
+        <line class="vapor-level-tick" x1="4" y1="8" x2="4" y2="25" />
+        <line class="vapor-level-tick" x1="134.67" y1="8" x2="134.67" y2="25" />
+        <line class="vapor-level-tick" x1="265.33" y1="8" x2="265.33" y2="25" />
+        <line class="vapor-level-tick" x1="396" y1="8" x2="396" y2="25" />
+        <circle id="vapor-level-handle" class="lever-handle" cx="4" cy="20" r="14" />
       </svg>
+      <p class="vapor-level-readout">現在: <span id="vapor-level-label"></span>（<span id="vapor-level-value"></span> g/m³）</p>
     </div>
   </main>
 
@@ -105,6 +114,6 @@
     </div>
   </div>
 
-  <script src="./script.js?v=25"></script>
+  <script src="./script.js?v=26"></script>
 </body>
 </html>

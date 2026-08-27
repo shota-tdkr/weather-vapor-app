@@ -12,6 +12,12 @@ const distanceLever = document.getElementById("distance-lever");
 const distanceLeverFill = document.getElementById("distance-lever-fill");
 const distanceLeverHandle = document.getElementById("distance-lever-handle");
 const distanceLeverCaptionEl = document.getElementById("distance-lever-caption");
+const vaporLevelLever = document.getElementById("vapor-level-lever");
+const vaporLevelFill = document.getElementById("vapor-level-fill");
+const vaporLevelHandle = document.getElementById("vapor-level-handle");
+const vaporLevelCaptionEl = document.getElementById("vapor-level-caption");
+const vaporLevelLabelEl = document.getElementById("vapor-level-label");
+const vaporLevelValueEl = document.getElementById("vapor-level-value");
 const liftArrows = Array.from(document.querySelectorAll(".lift-arrow"));
 const LIFT_ARROW_OFFSETS = [
   [0, 34],
@@ -48,15 +54,25 @@ const MESSAGES = {
   // マップの外・横向きに配置し、場所・向き・色の3点で区別する。コップは雲と
   // 同じ数字を2回描いているだけで情報を持たないため撤去し、あふれ量のg数表示を
   // 水蒸気ゲージに追加した（design.md参照）
+  //
+  // 2026-08-27: 「季節スライダー」改め「水蒸気の量スライダー」を実装。気温を
+  // 15℃に固定したまま季節と呼ぶのは学習アプリとして誤りになるため、季節ではなく
+  // 「水蒸気の量」という量そのものを動かす形にした（design.md参照）。用語も
+  // 「保有水蒸気量」（教科書に存在しない造語）をやめ、「水蒸気の量」（教科書の
+  // 「空気1m³中にふくまれる水蒸気の量」の一部）に統一した
   leverCaptionDistance: "距離レバー（左＝遠い　右＝山に近い）",
   leverAriaDistance: "距離レバー（山までの距離を操作します）",
+  leverCaptionVapor: "水蒸気の量（左＝少ない　右＝多い）",
+  leverAriaVapor: "水蒸気の量スライダー（左が少ない、右が多いです）",
   // 以下、常時表示の補足用の凡例（初回起動時の正式なチュートリアルとは別物）
   legendTitle: "記号の説明",
   legendAirMass: "○ = 空気の塊。レバー操作にあわせて位置と高さが自動で変わります（直接ドラッグはできません）。",
   legendMountain: "▲ = 山。距離レバーで○を近づけるほど、高さも自動で上がります。",
   legendDistanceLever: "マップ下の横向きのレバー: 右へ動かすほど山に近づき、高さも自動で上がります。",
+  legendVaporLevel:
+    "マップ下のもう1本のレバー: 水蒸気の量を4段階（少ない/やや少ない/やや多い/多い）で切り替えます。水蒸気の量が多いほど、低い高さで雲ができます。",
   legendVaporGauge:
-    "マップ内の水蒸気ゲージ: 塗り＝保有水蒸気量（固定）、点線＝飽和水蒸気量（気温が下がると降りてきます）。点線が塗りより下に来た分を、白抜き＋輪郭線で「あふれ」として示します。",
+    "マップ内の水蒸気ゲージ: 塗り＝水蒸気の量（高さを変えても変わりません。下のレバーで切り替えられます）、点線＝飽和水蒸気量（気温が下がると降りてきます）。点線が塗りより下に来た分を、白抜き＋輪郭線で「あふれ」として示します。",
   legendCloud: "○が白く曇る = あふれた水蒸気の量に応じて、空気塊自体が白くなります（雲ができる様子）。",
   // 変化ログ（因果を段階表示するテキスト）。数値を埋め込むため関数にしているが、
   // 文言はすべてここに集約する（コード中に日本語を散らさない）
@@ -74,6 +90,11 @@ const MESSAGES = {
   logExcessStillRoom: "→ まだ水蒸気を抱えられるので、あふれていません",
   logCloudStart: "→ 水蒸気を抱えきれなくなり、雲ができました",
   logCloudEnd: "→ 水蒸気の量が抱えられる量を下回り、雲が消えました",
+  // 水蒸気の量スライダーを切り替えたときの変化ログ。高さは変えていないので、
+  // 気温・抱えられる量（飽和水蒸気量）は変化しない。変わるのは水蒸気の量自体と、
+  // それに応じたあふれ量だけ
+  logVaporLevelChanged: (beforeLabel, afterLabel, beforeValue, afterValue) =>
+    `水蒸気の量を「${beforeLabel}」(${beforeValue}g/m³)から「${afterLabel}」(${afterValue}g/m³)に変えました`,
   // あふれ量が最大に達したときだけの一言。「雲ができる=雨が降る」という誤った
   // 因果を避けるため、雨を降らせる演出は追加せず、条件付きの説明に留める
   logRainHint: "→ さらに条件が重なると、雲の粒が成長して雨になります",
@@ -99,13 +120,24 @@ const SATURATION_TABLE = [
 ];
 
 const LAPSE_RATE = 0.08; // ℃ / 高さ1単位あたりの上昇による気温低下
-// 高さ0時点で「保有水蒸気量が飽和水蒸気量に対して明確に余裕がある」状態から始め、
-// レバーを動かすうちに余裕→あふれ、の両方が画面に現れるようにする。
-// HELD_VAPOR=9.4は教科書の対応表の「10℃の飽和水蒸気量」と同じ値（＝露点10℃相当）を
-// 採用しており、INITIAL_TEMP=15℃・湿度約73%という不自然でない組み合わせになる
 const INITIAL_TEMP = 15;
-const HELD_VAPOR = 9.4;
 const MIN_CAPACITY = 0.1; // saturationVaporAmount()が返す最小値（低温側の外挿がマイナスにならないための下限）
+
+// 水蒸気の量スライダー: 教科書の対応表の値をそのまま4段階として使う
+// （4.8=0℃欄、6.8=5℃欄、9.4=10℃欄。11.6だけは表の値そのものではなく、15℃欄の
+// 12.8をそのまま使うと高さ0の時点で湿度100%＝最初から曇ってしまうため、
+// 少し余裕を残した値にしている）。初期値の9.4は「露点10℃・湿度約73%」という
+// 不自然でない組み合わせで、旧HELD_VAPOR固定値と同じ（design.md「水蒸気の量
+// スライダー」参照）
+const VAPOR_LEVELS = [
+  { value: 4.8, label: "少ない" },
+  { value: 6.8, label: "やや少ない" },
+  { value: 9.4, label: "やや多い" },
+  { value: 11.6, label: "多い" },
+];
+const VAPOR_LEVEL_INITIAL_INDEX = 2;
+let vaporLevelIndex = VAPOR_LEVEL_INITIAL_INDEX;
+let currentHeldVapor = VAPOR_LEVELS[vaporLevelIndex].value;
 
 // 実際に到達する範囲（温度15℃〜-5℃、飽和水蒸気量2.8〜12.8g/m³）に対して
 // 余裕を持たせつつ、可動域の大半を使うように調整した値（レビュー指摘対応）
@@ -130,7 +162,7 @@ const LEVER_TRACK_WIDTH = 392;
 const CLOUD_STEPS = 8;
 
 // 距離レバー: 山への接近で自動的に高さが上がる。距離0(山頂)で最大の高さに達し、
-// 距離レバー1本で可動域全体（水滴8個・雨のヒントまで）に届く
+// 距離レバー1本で可動域全体（雲が最大の濃さになり、雨のヒントが出るところまで）に届く
 // （2026-08-27: 高さレバー撤去にともない、旧EXPERIMENT_MAX_HEIGHTと同じ250へ拡大。design.md参照）
 const MOUNTAIN_INFLUENCE_RADIUS = 120; // 山頂からこの距離より遠いと山の影響なし
 const MOUNTAIN_MAX_HEIGHT = 250; // 山頂での高さ（距離レバーが到達できる高さの上限）
@@ -179,12 +211,15 @@ function saturationVaporAmount(temp) {
   return 0;
 }
 
-// あふれ量(HELD_VAPOR - capacity)が実際に到達しうる最大値。距離レバーの上限
+// あふれ量(heldVapor - capacity)が実際に到達しうる最大値。距離レバーの上限
 // (距離0、山頂＝MOUNTAIN_MAX_HEIGHT)まで上昇したときの気温・飽和水蒸気量から求める。
-// MIN_CAPACITYの下限に必ず到達するとは限らないため
-// （INITIAL_TEMP/HELD_VAPORの組み合わせ次第で最低気温が0℃を下回らないこともある）、
-// 決め打ちにせずsaturationVaporAmount()から逆算する。水滴の個数のしきい値の基準
-const MAX_EXCESS = HELD_VAPOR - saturationVaporAmount(INITIAL_TEMP - LAPSE_RATE * MOUNTAIN_MAX_HEIGHT);
+// MIN_CAPACITYの下限に必ず到達するとは限らないため決め打ちにせず
+// saturationVaporAmount()から逆算する。雲の段階数(CLOUD_STEPS)のしきい値の基準。
+// 水蒸気の量スライダーで値が変わるたびに再計算が必要なため、定数ではなく関数にした
+function computeMaxExcess(heldVapor) {
+  return heldVapor - saturationVaporAmount(INITIAL_TEMP - LAPSE_RATE * MOUNTAIN_MAX_HEIGHT);
+}
+let currentMaxExcess = computeMaxExcess(currentHeldVapor);
 
 // 値の比率(ratio)を、縦のトラック（上端trackTop・高さtrackHeight）上での
 // 「その値を示す位置のy座標」に変換する。値が大きいほどトラック上端に近づく
@@ -231,10 +266,9 @@ function updateGauges(height) {
   const tempRatio = clamp((temp - TEMP_MIN) / (TEMP_MAX - TEMP_MIN), 0, 1);
   tempStripFill.setAttribute("width", tempRatio * TEMP_STRIP_WIDTH);
 
-  // 水蒸気ゲージ（反転済み）: 塗り＝保有水蒸気量（HELD_VAPORが定数の間は見た目上
-  // 動かないが、季節スライダー実装後にHELD_VAPORが可変になっても同じ式で動くよう、
-  // 固定値扱いにせず毎回計算する）
-  const heldTopY = verticalFillTopY(HELD_VAPOR / VAPOR_MAX, VAPOR_TRACK_TOP, VAPOR_TRACK_HEIGHT);
+  // 水蒸気ゲージ（反転済み）: 塗り＝水蒸気の量（currentHeldVapor。高さを変えても
+  // 動かないが、水蒸気の量スライダーで段階的に変えられる）
+  const heldTopY = verticalFillTopY(currentHeldVapor / VAPOR_MAX, VAPOR_TRACK_TOP, VAPOR_TRACK_HEIGHT);
   vaporFill.setAttribute("y", heldTopY);
   vaporFill.setAttribute("height", VAPOR_TRACK_TOP + VAPOR_TRACK_HEIGHT - heldTopY);
 
@@ -244,10 +278,10 @@ function updateGauges(height) {
   vaporCapLine.setAttribute("y2", capLineY);
   vaporCapLabel.setAttribute("y", capLineY + 3);
 
-  // あふれ帯: 線が塗りの上端より下に来た分（＝保有量のうち抱えきれない部分）を
+  // あふれ帯: 線が塗りの上端より下に来た分（＝水蒸気の量のうち抱えきれない部分）を
   // 白抜き＋輪郭線で示す。○が白く曇る雲の表現と同じ視覚言語にすることで、
   // 「白い＝あふれた分＝雲になるもの」という一貫性を作る（design.md参照）
-  const excess = Math.max(0, HELD_VAPOR - capacity);
+  const excess = Math.max(0, currentHeldVapor - capacity);
   const excessBandHeight = Math.max(0, capLineY - heldTopY);
   vaporExcessBand.setAttribute("y", heldTopY);
   vaporExcessBand.setAttribute("height", excessBandHeight);
@@ -260,12 +294,10 @@ function updateGauges(height) {
   distanceLeverFill.setAttribute("width", distanceRatio * LEVER_TRACK_WIDTH);
   distanceLeverHandle.setAttribute("cx", LEVER_TRACK_X + distanceRatio * LEVER_TRACK_WIDTH);
 
-  // 雲: ○自体をあふれ量に応じて段階的に白く塗る（fill-opacityを上げる）。
-  // TODO(季節スライダー実装時): 季節ごとの保有水蒸気量に応じてHELD_VAPORを
-  // 差し替える（design.md「季節スライダー」参照）
+  // 雲: ○自体をあふれ量に応じて段階的に白く塗る（fill-opacityを上げる）
   let visibleStepCount = 0;
   for (let i = 0; i < CLOUD_STEPS; i++) {
-    if (isStepVisible(excess, MAX_EXCESS, CLOUD_STEPS, i)) visibleStepCount += 1;
+    if (isStepVisible(excess, currentMaxExcess, CLOUD_STEPS, i)) visibleStepCount += 1;
   }
   airMass.setAttribute("fill-opacity", visibleStepCount / CLOUD_STEPS);
 }
@@ -278,6 +310,21 @@ function isNearZero(value) {
   return value <= 0.05;
 }
 
+// あふれ量の前後比較から、雲の発生/消滅、またはあふれ量の増減・据え置きを1行にする。
+// buildHeightChangeLog（高さの変化）とbuildVaporLevelChangeLog（水蒸気の量の変化）の
+// 両方から呼ばれる共通ロジック。雲の発生/消滅と「あふれ」は同じ事象を2回言わない
+// （コップ撤去にともない統合。design.md「端の小道具：汗をかくコップ」参照）。
+// しきい値をまたぐ瞬間は雲の発生/消滅だけを報告し、またがない間の増減・据え置きだけを
+// あふれ量で報告する
+function excessTransitionLines(beforeExcess, afterExcess) {
+  if (isNearZero(beforeExcess) && !isNearZero(afterExcess)) return [MESSAGES.logCloudStart];
+  if (!isNearZero(beforeExcess) && isNearZero(afterExcess)) return [MESSAGES.logCloudEnd];
+  if (afterExcess > beforeExcess) return [MESSAGES.logExcessMore];
+  if (afterExcess < beforeExcess) return [MESSAGES.logExcessLess];
+  if (isNearZero(afterExcess)) return [MESSAGES.logExcessStillRoom];
+  return [];
+}
+
 // ドラッグ前後の高さから、気温→飽和水蒸気量→結露、という因果の連鎖をテキスト化する
 function buildHeightChangeLog(beforeHeight, afterHeight) {
   if (Math.abs(afterHeight - beforeHeight) < CHANGE_LOG_MIN_HEIGHT_DELTA) {
@@ -288,8 +335,8 @@ function buildHeightChangeLog(beforeHeight, afterHeight) {
   const afterTemp = INITIAL_TEMP - afterHeight * LAPSE_RATE;
   const beforeCapacity = saturationVaporAmount(beforeTemp);
   const afterCapacity = saturationVaporAmount(afterTemp);
-  const beforeExcess = Math.max(0, HELD_VAPOR - beforeCapacity);
-  const afterExcess = Math.max(0, HELD_VAPOR - afterCapacity);
+  const beforeExcess = Math.max(0, currentHeldVapor - beforeCapacity);
+  const afterExcess = Math.max(0, currentHeldVapor - afterCapacity);
   const rising = afterHeight > beforeHeight;
 
   const lines = [rising ? MESSAGES.logLifted : MESSAGES.logLowered];
@@ -305,25 +352,40 @@ function buildHeightChangeLog(beforeHeight, afterHeight) {
       : MESSAGES.logCapacityRise(beforeCapacity.toFixed(1), afterCapacity.toFixed(1))
   );
 
-  // 雲の発生/消滅と「あふれ」は同じ事象を2回言わない（コップ撤去にともない統合。
-  // design.md「端の小道具：汗をかくコップ」参照）。しきい値をまたぐ瞬間は雲の
-  // 発生/消滅だけを報告し、またがない間の増減・据え置きだけをあふれ量で報告する
-  if (isNearZero(beforeExcess) && !isNearZero(afterExcess)) {
-    lines.push(MESSAGES.logCloudStart);
-  } else if (!isNearZero(beforeExcess) && isNearZero(afterExcess)) {
-    lines.push(MESSAGES.logCloudEnd);
-  } else if (afterExcess > beforeExcess) {
-    lines.push(MESSAGES.logExcessMore);
-  } else if (afterExcess < beforeExcess) {
-    lines.push(MESSAGES.logExcessLess);
-  } else if (isNearZero(afterExcess)) {
-    lines.push(MESSAGES.logExcessStillRoom);
-  }
+  lines.push(...excessTransitionLines(beforeExcess, afterExcess));
 
   // あふれ量が最大に達した瞬間だけ、雨との関係を一言添える（「雲ができる=必ず雨」という
   // 誤った因果を避けるため、雨を降らせる演出そのものは追加しない。条件付きの一文のみ）
-  const wasAtMaxExcess = beforeExcess >= MAX_EXCESS;
-  const isAtMaxExcess = afterExcess >= MAX_EXCESS;
+  const wasAtMaxExcess = beforeExcess >= currentMaxExcess;
+  const isAtMaxExcess = afterExcess >= currentMaxExcess;
+  if (isAtMaxExcess && !wasAtMaxExcess) {
+    lines.push(MESSAGES.logRainHint);
+  }
+
+  return lines;
+}
+
+// 水蒸気の量スライダーの前後で、その場の高さ(currentHeight)におけるあふれ量の変化を
+// テキスト化する。高さは変えていないので気温・抱えられる量（飽和水蒸気量）は不変
+function buildVaporLevelChangeLog(beforeIndex, afterIndex) {
+  const beforeLevel = VAPOR_LEVELS[beforeIndex];
+  const afterLevel = VAPOR_LEVELS[afterIndex];
+  const capacity = saturationVaporAmount(INITIAL_TEMP - currentHeight * LAPSE_RATE);
+  const beforeExcess = Math.max(0, beforeLevel.value - capacity);
+  const afterExcess = Math.max(0, afterLevel.value - capacity);
+
+  const lines = [
+    MESSAGES.logVaporLevelChanged(
+      beforeLevel.label,
+      afterLevel.label,
+      beforeLevel.value.toFixed(1),
+      afterLevel.value.toFixed(1)
+    ),
+  ];
+  lines.push(...excessTransitionLines(beforeExcess, afterExcess));
+
+  const wasAtMaxExcess = beforeExcess >= computeMaxExcess(beforeLevel.value);
+  const isAtMaxExcess = afterExcess >= computeMaxExcess(afterLevel.value);
   if (isAtMaxExcess && !wasAtMaxExcess) {
     lines.push(MESSAGES.logRainHint);
   }
@@ -377,6 +439,10 @@ function logHeightChange(beforeHeight, afterHeight) {
   if (lines) {
     appendLogCascade(lines);
   }
+}
+
+function logVaporLevelChange(beforeIndex, afterIndex) {
+  appendLogCascade(buildVaporLevelChangeLog(beforeIndex, afterIndex));
 }
 
 // 山の輪郭の点データ（SVG側の図形をそのまま使う）。山は1つの前提（design.md参照）
@@ -517,6 +583,54 @@ bindLeverDrag(distanceLever, {
   },
 });
 
+// 水蒸気の量スライダー（マップ外、横向き、距離レバーの直下）の見た目を更新する
+function renderVaporLevelControl() {
+  const ratio = vaporLevelIndex / (VAPOR_LEVELS.length - 1);
+  const x = LEVER_TRACK_X + ratio * LEVER_TRACK_WIDTH;
+  vaporLevelFill.setAttribute("width", ratio * LEVER_TRACK_WIDTH);
+  vaporLevelHandle.setAttribute("cx", x);
+  const level = VAPOR_LEVELS[vaporLevelIndex];
+  vaporLevelLabelEl.textContent = level.label;
+  vaporLevelValueEl.textContent = level.value.toFixed(1);
+}
+
+// svgX（横向きスライダーのローカルx座標）から、最も近い段階のインデックスを求める。
+// 4段階の離散スライダーなので、距離レバーのような連続値ではなく、常にどれか1つの
+// 段階にスナップする
+function nearestVaporLevelIndex(svgX) {
+  const ratio = clamp((svgX - LEVER_TRACK_X) / LEVER_TRACK_WIDTH, 0, 1);
+  return Math.round(ratio * (VAPOR_LEVELS.length - 1));
+}
+
+function setVaporLevel(index) {
+  const clamped = clamp(index, 0, VAPOR_LEVELS.length - 1);
+  if (clamped === vaporLevelIndex) return;
+  vaporLevelIndex = clamped;
+  currentHeldVapor = VAPOR_LEVELS[vaporLevelIndex].value;
+  currentMaxExcess = computeMaxExcess(currentHeldVapor);
+  renderVaporLevelControl();
+  updateGauges(currentHeight);
+}
+
+// 水蒸気の量スライダー: 触れた位置（pointerdown時も含む）に応じて最も近い段階へ
+// 即座に切り替わる。高さは変えない
+let vaporLevelIndexBeforeDrag = null;
+bindLeverDrag(vaporLevelLever, {
+  onStart: (svgX) => {
+    vaporLevelIndexBeforeDrag = vaporLevelIndex;
+    setVaporLevel(nearestVaporLevelIndex(svgX));
+  },
+  onMove: (svgX) => {
+    setVaporLevel(nearestVaporLevelIndex(svgX));
+  },
+  onEnd: () => {
+    if (vaporLevelIndexBeforeDrag !== null && vaporLevelIndexBeforeDrag !== vaporLevelIndex) {
+      logVaporLevelChange(vaporLevelIndexBeforeDrag, vaporLevelIndex);
+    }
+    vaporLevelIndexBeforeDrag = null;
+  },
+});
+
 function renderLegend() {
   legendEl.innerHTML = `
     <p class="legend-title">${MESSAGES.legendTitle}</p>
@@ -524,6 +638,7 @@ function renderLegend() {
       <li>${MESSAGES.legendAirMass}</li>
       <li>${MESSAGES.legendMountain}</li>
       <li>${MESSAGES.legendDistanceLever}</li>
+      <li>${MESSAGES.legendVaporLevel}</li>
       <li>${MESSAGES.legendVaporGauge}</li>
       <li>${MESSAGES.legendCloud}</li>
     </ul>
@@ -535,8 +650,11 @@ renderLegend();
 // キャプション・aria-labelは固定文言なので初期化時に一度だけ設定する
 distanceLeverCaptionEl.textContent = MESSAGES.leverCaptionDistance;
 distanceLever.setAttribute("aria-label", MESSAGES.leverAriaDistance);
+vaporLevelCaptionEl.textContent = MESSAGES.leverCaptionVapor;
+vaporLevelLever.setAttribute("aria-label", MESSAGES.leverAriaVapor);
 
 positionAirMass(currentDistance);
+renderVaporLevelControl();
 updateGauges(currentHeight);
 
 // チュートリアル（初回起動時のみ、今のシーンに吹き出しを重ねるだけで別画面には遷移しない）
