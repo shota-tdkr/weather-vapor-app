@@ -132,28 +132,49 @@ body {
   fill: #1c2541;
 }
 
-/* ○はレバー操作の結果として自動で動く表示専用のオブジェクト（直接ドラッグはしない）。
-   モード切り替え時の位置ジャンプを、水滴のフェード（0.3s）と足並みを揃えてなめらかに
-   見せるためのトランジション。ドラッグ中は#air-mass.draggingで無効化し、指に瞬時に
-   追従させる（レバー操作の1:1追従が崩れないようにするため）。
-   fillは白固定にし、あふれ量に応じたfill-opacity（JS側でupdateGauges()内から
-   setAttributeする。初期値は最初のupdateGauges()呼び出しで0になる）だけで雲の
-   濃さを表現する。opacity 0のときは背景の空色(sky)がそのまま透けて見え、
-   輪郭線だけの「曇っていない」見た目になる。
-   重要: ここにfill-opacityの値を書かないこと。CSSの宣言はSVGのpresentation
-   attribute（JSのsetAttributeが書き込む先）より常に優先されるため、ここで
-   固定値を指定すると、JS側がどんな値をsetAttributeしても描画に反映されなく
-   なる（2026-08-27に発覚したバグ。雲の実装(0d90f95)時点から存在していた） */
+/* ○（空気の塊）はレバー操作の結果として自動で動く表示専用のグループ（直接
+   ドラッグはしない）。位置はtransform(translate)で持たせる（cx/cyではなく。
+   中の基本円・雲の塊がそれぞれ独立した円要素のため、グループ全体をまとめて
+   動かす必要がある）。位置ジャンプをなめらかに見せるためのトランジション。
+   ドラッグ中は#air-mass.draggingで無効化し、指に瞬時に追従させる（レバー
+   操作の1:1追従が崩れないようにするため） */
 #air-mass {
-  fill: #ffffff;
-  stroke: #1c2541;
-  stroke-width: 2;
   pointer-events: none;
-  transition: cx 0.3s ease, cy 0.3s ease, fill-opacity 0.3s ease;
+  transition: transform 0.3s ease;
 }
 
 #air-mass.dragging {
   transition: none;
+}
+
+#air-mass.dragging #air-mass-base,
+#air-mass.dragging .air-mass-puff {
+  transition: none;
+}
+
+/* 空気の塊を構成する円は全て白塗り＋濃紺の輪郭線で統一する。
+   fillは白固定にし、あふれ量に応じたopacity/fill-opacity（JS側で
+   updateGauges()内からsetAttributeする。初期値は最初のupdateGauges()呼び出しで
+   決まる）だけで雲の濃さ・大きさを表現する。opacity 0のときは背景の空色(sky)が
+   そのまま透けて見え、輪郭線だけの「曇っていない」見た目になる。
+   重要: ここにfill-opacity/opacityの値を書かないこと。CSSの宣言はSVGの
+   presentation attribute（JSのsetAttributeが書き込む先）より常に優先されるため、
+   ここで固定値を指定すると、JS側がどんな値をsetAttributeしても描画に反映されなく
+   なる（2026-08-27に発覚したバグ。雲の実装(0d90f95)時点から存在していた） */
+#air-mass-base {
+  fill: #ffffff;
+  stroke: #1c2541;
+  stroke-width: 2;
+  transition: fill-opacity 0.3s ease;
+}
+
+/* 周囲4つの「もくもく」した塊。あふれ量が増えるにつれて1つずつopacityが
+   0→1になり、雲がもくもくと育っていくように見せる（design.md参照） */
+.air-mass-puff {
+  fill: #ffffff;
+  stroke: #1c2541;
+  stroke-width: 2;
+  transition: opacity 0.3s ease;
 }
 
 .lift-arrow {

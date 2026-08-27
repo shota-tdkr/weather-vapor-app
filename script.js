@@ -1,4 +1,6 @@
 const airMass = document.getElementById("air-mass");
+const airMassBase = document.getElementById("air-mass-base");
+const airMassPuffs = Array.from(document.querySelectorAll(".air-mass-puff"));
 const tempValueEl = document.getElementById("temp-value");
 const tempStripFill = document.getElementById("temp-strip-fill");
 const heightValueEl = document.getElementById("height-value");
@@ -73,7 +75,9 @@ const MESSAGES = {
     "マップ下のもう1本のレバー: 水蒸気の量を4段階（少ない/やや少ない/やや多い/多い）で切り替えます。水蒸気の量が多いほど、低い高さで雲ができます。",
   legendVaporGauge:
     "マップ内の水蒸気ゲージ: 塗り＝水蒸気の量（高さを変えても変わりません。下のレバーで切り替えられます）、点線＝飽和水蒸気量（気温が下がると降りてきます）。点線が塗りより下に来た分を、白抜き＋輪郭線で「あふれ」として示します。",
-  legendCloud: "○が白く曇る = あふれた水蒸気の量に応じて、空気塊自体が白くなります（雲ができる様子）。",
+  // 「○が白く曇る＝雲ができる様子」という凡例は2026-08-27に削除した。○自体を
+  // もくもくした雲の形に変化させる表現に変えたことで、注釈なしで雲だと伝わる
+  // ようになったため（design.md参照）
   // 変化ログ（因果を段階表示するテキスト）。数値を埋め込むため関数にしているが、
   // 文言はすべてここに集約する（コード中に日本語を散らさない）
   changeLogTitle: "変化ログ",
@@ -234,10 +238,15 @@ function triangleUpPoints(cx, cy) {
   return `${cx},${cy - 6} ${cx - 6},${cy + 6} ${cx + 6},${cy + 6}`;
 }
 
-// 高さが上がった瞬間だけ、空気の塊の下から矢印がフワッと浮かぶ演出
+// 高さが上がった瞬間だけ、空気の塊の下から矢印がフワッと浮かぶ演出。
+// #air-massはグループ（transformで位置を持つ）になり、cx/cy属性を持たなく
+// なったため、位置はDOMから読み戻さず、現在のcurrentDistanceから
+// xForDistance/terrainYで直接計算する（この2関数・currentDistanceは
+// ファイル後半で定義されるが、実際に呼ばれるのはドラッグ操作時＝
+// 初期化がすべて終わった後なので問題ない）
 function pulseLiftArrows() {
-  const cx = parseFloat(airMass.getAttribute("cx"));
-  const cy = parseFloat(airMass.getAttribute("cy"));
+  const cx = xForDistance(currentDistance);
+  const cy = terrainY(currentDistance);
   liftArrows.forEach((arrow, index) => {
     const [dx, dy] = LIFT_ARROW_OFFSETS[index];
     arrow.setAttribute("points", triangleUpPoints(cx + dx, cy + dy));
@@ -294,12 +303,24 @@ function updateGauges(height) {
   distanceLeverFill.setAttribute("width", distanceRatio * LEVER_TRACK_WIDTH);
   distanceLeverHandle.setAttribute("cx", LEVER_TRACK_X + distanceRatio * LEVER_TRACK_WIDTH);
 
-  // 雲: ○自体をあふれ量に応じて段階的に白く塗る（fill-opacityを上げる）
+  // 雲: ○を、あふれ量に応じてもくもくした雲の形に段階的に変化させる。
+  // 基本円(air-mass-base)は従来どおりfill-opacityを連続的に上げていく。
+  // 周囲4つの塊(air-mass-puff)は、cloudRatio(0〜1)を4等分した区間ごとに
+  // 1つずつ順番にopacity(輪郭線ごと)が0→1になり、雲が育っていくように見せる。
+  // あふれ量0(cloudRatio=0)のときは全員opacity 0で、これまでどおりただの
+  // ○のまま（design.md参照。以前は「白く曇るだけの円」で雲だと伝わりにくく、
+  // 凡例の説明文に頼らざるを得なかったための変更）
   let visibleStepCount = 0;
   for (let i = 0; i < CLOUD_STEPS; i++) {
     if (isStepVisible(excess, currentMaxExcess, CLOUD_STEPS, i)) visibleStepCount += 1;
   }
-  airMass.setAttribute("fill-opacity", visibleStepCount / CLOUD_STEPS);
+  const cloudRatio = visibleStepCount / CLOUD_STEPS;
+  airMassBase.setAttribute("fill-opacity", cloudRatio);
+  const puffSegment = 1 / airMassPuffs.length;
+  airMassPuffs.forEach((puff, index) => {
+    const puffOpacity = clamp((cloudRatio - index * puffSegment) / puffSegment, 0, 1);
+    puff.setAttribute("opacity", puffOpacity);
+  });
 }
 
 const CHANGE_LOG_MIN_HEIGHT_DELTA = 3; // これ未満の高さ変化はログに残さない
@@ -457,10 +478,12 @@ const MOUNTAIN_POINTS = document
   });
 const MOUNTAIN_PEAK = MOUNTAIN_POINTS.reduce((peak, p) => (p.y < peak.y ? p : peak), MOUNTAIN_POINTS[0]);
 
-// ○の見た目の起点（距離レバーが最大＝山から最も遠い状態）。index.html側の初期配置をそのまま使う
+// ○の見た目の起点（距離レバーが最大＝山から最も遠い状態）。index.html側の
+// data-far-x/data-far-yをそのまま使う（#air-massはグループになりcx/cy属性を
+// 持たないため、位置の初期値はdata属性で持たせている）
 const FAR_POINT = {
-  x: parseFloat(airMass.getAttribute("cx")),
-  y: parseFloat(airMass.getAttribute("cy")),
+  x: parseFloat(airMass.dataset.farX),
+  y: parseFloat(airMass.dataset.farY),
 };
 
 // FAR_POINTに近い側の裾（山頂ではない頂点のうち近い方）。○がどちら側から
@@ -515,10 +538,12 @@ function terrainY(distance) {
 }
 
 // ○の見た目の位置。x・yとも距離レバーだけで決まる（terrainYが地形に沿った軌道を
-// 描くため、○が山の内部にめり込むことは構造上起こらない）
+// 描くため、○が山の内部にめり込むことは構造上起こらない）。#air-massはグループ
+// なので、cx/cyではなくtransform(translate)で位置を持たせる
 function positionAirMass(distance) {
-  airMass.setAttribute("cx", xForDistance(distance));
-  airMass.setAttribute("cy", terrainY(distance));
+  const x = xForDistance(distance);
+  const y = terrainY(distance);
+  airMass.setAttribute("transform", `translate(${x},${y})`);
 }
 
 let currentHeight = 0;
@@ -640,7 +665,6 @@ function renderLegend() {
       <li>${MESSAGES.legendDistanceLever}</li>
       <li>${MESSAGES.legendVaporLevel}</li>
       <li>${MESSAGES.legendVaporGauge}</li>
-      <li>${MESSAGES.legendCloud}</li>
     </ul>
   `;
 }
