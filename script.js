@@ -8,6 +8,7 @@ const vaporExcessBand = document.getElementById("vapor-excess-band");
 const vaporCapLine = document.getElementById("vapor-cap-line");
 const vaporCapLabel = document.getElementById("vapor-cap-label");
 const excessValueEl = document.getElementById("excess-value");
+const excessReadoutEl = document.getElementById("excess-readout");
 const legendEl = document.getElementById("legend");
 const distanceLever = document.getElementById("distance-lever");
 const distanceLeverFill = document.getElementById("distance-lever-fill");
@@ -19,7 +20,6 @@ const vaporLevelFill = document.getElementById("vapor-level-fill");
 const vaporLevelHandle = document.getElementById("vapor-level-handle");
 const vaporLevelCaptionEl = document.getElementById("vapor-level-caption");
 const vaporLevelLabelEl = document.getElementById("vapor-level-label");
-const vaporLevelValueEl = document.getElementById("vapor-level-value");
 const liftArrows = Array.from(document.querySelectorAll(".lift-arrow"));
 const LIFT_ARROW_OFFSETS = [
   [0, 34],
@@ -367,7 +367,10 @@ function updateGauges(height) {
   // 距離レバーが到達できる高さの上限(MOUNTAIN_MAX_HEIGHT)がそのまま高さの実際の
   // 可動域でもあるため、表示の分母は常にこれでよい
   heightValueEl.textContent = Math.round((height / MOUNTAIN_MAX_HEIGHT) * HEIGHT_DISPLAY_SCALE);
-  tempValueEl.textContent = temp.toFixed(1);
+  // 気温は整数で出す。0.1℃刻みは初見には「読むべき精度」に見えてしまうが、
+  // 実際には「上げると冷える」が伝わればよい途中経過（変化ログでは前後の差が
+  // 分かるよう小数1桁のまま残す）
+  tempValueEl.textContent = Math.round(temp);
 
   // 気温の横帯（情報パネル内、従属表示）
   const tempRatio = clamp((temp - TEMP_MIN) / (TEMP_MAX - TEMP_MIN), 0, 1);
@@ -396,6 +399,9 @@ function updateGauges(height) {
   vaporExcessBand.setAttribute("y", heldTopY);
   vaporExcessBand.setAttribute("height", excessBandHeight);
   excessValueEl.textContent = excess.toFixed(1);
+  // 水滴が0のときは見出しごと隠す（「0.0 g/m³」は情報を持たないうえ、初見に
+  // 「読むべき数字」を1つ増やしてしまう）。雲ができた瞬間に現れること自体が合図になる
+  excessReadoutEl.setAttribute("opacity", isNearZero(excess) ? "0" : "1");
 
   // 距離レバー（マップ外、横向き）の見た目は、距離自身の可動域
   // (0〜MOUNTAIN_INFLUENCE_RADIUS)を基準に正規化する（距離が0＝山頂に近いほど
@@ -714,8 +720,9 @@ function renderVaporLevelControl() {
   vaporLevelFill.setAttribute("width", ratio * LEVER_TRACK_WIDTH);
   vaporLevelHandle.setAttribute("cx", x);
   const level = VAPOR_LEVELS[vaporLevelIndex];
+  // 数値はマップ内のゲージ横（#held-vapor-value）に一本化したので、ここは段階の
+  // ラベルだけ（同じ数字を2回描かない。index.htmlのコメント参照）
   vaporLevelLabelEl.textContent = level.label;
-  vaporLevelValueEl.textContent = level.value.toFixed(1);
 }
 
 // svgX（横向きスライダーのローカルx座標）から、最も近い段階のインデックスを求める。

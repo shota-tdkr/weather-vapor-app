@@ -270,9 +270,26 @@ body {
   fill: #1c2541;
 }
 
-.readout {
-  font-size: 11px;
+/* 水滴になった量の見出し＋数値。0のときはJSがopacity=0にする（値そのものは
+   CSSに書かない。JSのsetAttributeが上書きされないようにするため。design.md参照） */
+#excess-readout {
+  transition: opacity 0.3s ease;
+}
+
+/* 情報パネル（高さ・気温）は「上げると冷える」の途中経過で、生徒が読み取るべき
+   最終出力ではない。主役の水蒸気ゲージより一段弱い字にして、視線の優先順位を
+   ゲージ側へ寄せる（理科が苦手な人の「どの数字を見ればいいの?」への対応） */
+.readout-sub {
+  font-size: 10px;
   fill: #1c2541;
+  fill-opacity: 0.75;
+}
+
+/* 高さが実単位ではない旨の注記。読めればよく、主張は最小でよい */
+.readout-note {
+  font-size: 8px;
+  fill: #1c2541;
+  fill-opacity: 0.6;
 }
 
 .readout-small {

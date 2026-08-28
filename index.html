@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>天気のたね</title>
   <!-- ?v=N はキャッシュ対策。style.css/script.js を編集したら両方の番号を1つ上げる -->
-  <link rel="stylesheet" href="./style.css?v=37">
+  <link rel="stylesheet" href="./style.css?v=38">
 </head>
 <body>
   <h1 class="app-title">天気のたね</h1>
@@ -91,9 +91,9 @@
            誤読しないよう、実際のmではない旨を1行添える -->
       <g class="info-panel" transform="translate(8,8)">
         <rect class="panel-plate" x="0" y="0" width="180" height="52" rx="6" />
-        <text class="readout" x="10" y="15">高さ <tspan id="height-value">0</tspan> / 100</text>
-        <text class="readout-small" x="10" y="28">実際の高さ（m）ではありません</text>
-        <text class="readout" x="10" y="43">気温 <tspan id="temp-value">15.0</tspan>℃</text>
+        <text class="readout-sub" x="10" y="15">高さ <tspan id="height-value">0</tspan> / 100</text>
+        <text class="readout-note" x="10" y="27">実際の高さ（m）ではありません</text>
+        <text class="readout-sub" x="10" y="43">気温 <tspan id="temp-value">15</tspan>℃</text>
         <rect class="temp-strip-bg" x="96" y="34" width="76" height="10" rx="5" />
         <rect id="temp-strip-fill" class="temp-strip-fill" x="96" y="34" width="0" height="10" rx="5" />
       </g>
@@ -114,8 +114,13 @@
         <rect id="vapor-excess-band" class="excess-band" x="0" y="0" width="52" height="0" />
         <line id="vapor-cap-line" class="vapor-cap-line" x1="-8" x2="60" y1="0" y2="0" />
         <text id="vapor-cap-label" class="readout-small" x="64" y="0">上限</text>
-        <text class="readout-small" x="-6" y="228">水滴になった量</text>
-        <text class="readout-strong" x="-6" y="246"><tspan id="excess-value">0.0</tspan> g/m³</text>
+        <!-- 水滴になった量。0のときは「0.0 g/m³」を出しても情報がないので、見出しごと
+             隠す（JSがopacityを切り替える）。雲ができた瞬間に数字が現れること自体が
+             合図になる -->
+        <g id="excess-readout">
+          <text class="readout-small" x="-6" y="228">水滴になった量</text>
+          <text class="readout-strong" x="-6" y="246"><tspan id="excess-value">0.0</tspan> g/m³</text>
+        </g>
       </g>
     </svg>
 
@@ -144,7 +149,11 @@
         <line class="vapor-level-tick" x1="396" y1="8" x2="396" y2="25" />
         <circle id="vapor-level-handle" class="lever-handle" cx="4" cy="20" r="14" />
       </svg>
-      <p class="vapor-level-readout">現在: <span id="vapor-level-label"></span>（<span id="vapor-level-value"></span> g/m³）</p>
+      <!-- 数値(g/m³)はマップ内のゲージ横に1箇所だけ置く。ここに再掲すると同じ数字が
+           画面に2度出る（お題モードでは問題文と合わせて3度）。「同じ数字を2回描いて
+           いるだけで情報を持たない」＝コップを撤去したときの判断基準に揃える。
+           段階のラベル（やや多い等）はスライダーの現在位置を言葉で示す情報なので残す -->
+      <p class="vapor-level-readout">現在: <span id="vapor-level-label"></span></p>
     </div>
   </main>
 
@@ -167,6 +176,6 @@
     </div>
   </div>
 
-  <script src="./script.js?v=37"></script>
+  <script src="./script.js?v=38"></script>
 </body>
 </html>
