@@ -5,6 +5,7 @@ const tempStripFill = document.getElementById("temp-strip-fill");
 const heightValueEl = document.getElementById("height-value");
 const vaporFill = document.getElementById("vapor-fill");
 const vaporExcessBand = document.getElementById("vapor-excess-band");
+const vaporNoRoom = document.getElementById("vapor-no-room");
 const vaporCapLine = document.getElementById("vapor-cap-line");
 const vaporCapLabel = document.getElementById("vapor-cap-label");
 const excessValueEl = document.getElementById("excess-value");
@@ -93,8 +94,10 @@ const MESSAGES = {
   legendDistanceLever: "マップ下の横向きのレバー: 右へ動かすほど山に近づき、高さも自動で上がります。",
   legendVaporLevel:
     "マップ下のもう1本のレバー: 水蒸気の量を4段階（少ない/やや少ない/やや多い/多い）で切り替えます。水蒸気の量が多いほど、低い高さで雲ができます。",
+  // 凡例は増やさず、既存のゲージの説明に斜線の一句を足すだけにする（凡例の長さは
+  // 画面が自分で説明できていない量の裏返しなので、行数を増やさない）
   legendVaporGauge:
-    "マップ内の水蒸気ゲージ: 塗り＝水蒸気の量（高さを変えても変わりません。下のレバーで切り替えられます）、点線＝飽和水蒸気量（気温が下がると降りてきます）。点線が塗りより下に来た分＝抱えきれずに水滴になった量を、白抜き＋輪郭線で示します。",
+    "マップ内の水蒸気ゲージ: 塗り＝水蒸気の量（高さを変えても変わりません。下のレバーで切り替えられます）、点線＝飽和水蒸気量（気温が下がると降りてきます）。点線より上の斜線は、その気温ではもう入らない量です。点線が塗りより下に来た分＝抱えきれずに水滴になった量を、白抜き＋輪郭線で示します。",
   // 「○が白く曇る＝雲ができる様子」という凡例は2026-08-27に削除した。○自体を
   // もくもくした雲の形に変化させる表現に変えたことで、注釈なしで雲だと伝わる
   // ようになったため（design.md参照）
@@ -390,6 +393,11 @@ function updateGauges(height) {
   vaporCapLine.setAttribute("y1", capLineY);
   vaporCapLine.setAttribute("y2", capLineY);
   vaporCapLabel.setAttribute("y", capLineY + 3);
+
+  // 「もう入らない領域」= 上限の線より上。気温が下がるほどcapLineYが下へ動くので、
+  // この斜線が上から広がっていく＝入る場所が減ることが数字なしで分かる
+  vaporNoRoom.setAttribute("y", VAPOR_TRACK_TOP);
+  vaporNoRoom.setAttribute("height", Math.max(0, capLineY - VAPOR_TRACK_TOP));
 
   // あふれ帯: 線が塗りの上端より下に来た分（＝水蒸気の量のうち抱えきれない部分）を
   // 白抜き＋輪郭線で示す。○が白く曇る雲の表現と同じ視覚言語にすることで、

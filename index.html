@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>天気のたね</title>
   <!-- ?v=N はキャッシュ対策。style.css/script.js を編集したら両方の番号を1つ上げる -->
-  <link rel="stylesheet" href="./style.css?v=38">
+  <link rel="stylesheet" href="./style.css?v=39">
 </head>
 <body>
   <h1 class="app-title">天気のたね</h1>
@@ -54,6 +54,15 @@
          はマップの外・横向きに置く。場所・向き・色の3つで区別をつけ、凡例に頼らずに
          済ませる（design.md「UIの課題」参照。弟さんの「バーが二つあるのはなぜ?」への対応） -->
     <svg id="map" viewBox="0 0 400 320" xmlns="http://www.w3.org/2000/svg" aria-label="山と空気の塊、高さ・気温の情報パネル、水蒸気ゲージ">
+      <defs>
+        <!-- 「この気温ではもう入らない量」を示す斜線。新しい色は足さず、濃紺
+             (#1c2541)を薄く敷くだけ。塗りつぶしにせず斜線にするのは、ゲージの
+             塗り（＝今の量）や白抜き（＝水滴）と質感で区別するため -->
+        <pattern id="no-room-hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+          <line x1="0" y1="0" x2="0" y2="6" stroke="#1c2541" stroke-width="1.5" stroke-opacity="0.22" />
+        </pattern>
+      </defs>
+
       <!-- 空（雲＝○の白いfillが背景と見分けられるよう、薄い青系の色を敷く） -->
       <rect class="sky" x="0" y="0" width="400" height="320" />
 
@@ -110,6 +119,11 @@
              plateは見出し＋数値が1行に収まるよう幅を96→108に広げた -->
         <text class="held-vapor-readout" x="96" y="-6"><tspan id="held-vapor-value">9.4</tspan> g/m³</text>
         <rect class="gauge-track" x="0" y="0" width="52" height="210" />
+        <!-- 「もう入らない領域」= 点線（上限）より上。気温が下がると点線が降りてきて
+             この斜線が上から広がる＝入る場所が減っていくことが、数字を読まなくても
+             分かる。塗り(#vapor-fill)より先に描き、下に敷く（塗りと重なる部分は
+             水滴になった分＝白抜きの#vapor-excess-bandが上に出る） -->
+        <rect id="vapor-no-room" class="no-room-band" x="0" y="0" width="52" height="0" />
         <rect id="vapor-fill" class="gauge-fill" x="0" y="0" width="52" height="0" />
         <rect id="vapor-excess-band" class="excess-band" x="0" y="0" width="52" height="0" />
         <line id="vapor-cap-line" class="vapor-cap-line" x1="-8" x2="60" y1="0" y2="0" />
@@ -176,6 +190,6 @@
     </div>
   </div>
 
-  <script src="./script.js?v=38"></script>
+  <script src="./script.js?v=39"></script>
 </body>
 </html>
