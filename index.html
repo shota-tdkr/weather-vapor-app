@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>天気のたね</title>
   <!-- ?v=N はキャッシュ対策。style.css/script.js を編集したら両方の番号を1つ上げる -->
-  <link rel="stylesheet" href="./style.css?v=35">
+  <link rel="stylesheet" href="./style.css?v=36">
 </head>
 <body>
   <h1 class="app-title">天気のたね</h1>
@@ -80,13 +80,17 @@
       </g>
 
       <!-- 情報パネル（高さ・気温）。気温は「上げると冷える」の途中経過であって
-           生徒が読み取るべき最終出力ではないため、数値＋短い横帯に留める -->
+           生徒が読み取るべき最終出力ではないため、数値＋短い横帯に留める。
+           高さの「0 / 100」は意図的な相対値（実単位を名乗ると気温減率などの簡略化
+           モデルと現実の齟齬が問われるため。design.md参照）。中学生が「25m?」と
+           誤読しないよう、実際のmではない旨を1行添える -->
       <g class="info-panel" transform="translate(8,8)">
-        <rect class="panel-plate" x="0" y="0" width="180" height="42" rx="6" />
-        <text class="readout" x="10" y="16">高さ <tspan id="height-value">0</tspan> / 100</text>
-        <text class="readout" x="10" y="33">気温 <tspan id="temp-value">15.0</tspan>℃</text>
-        <rect class="temp-strip-bg" x="96" y="24" width="76" height="10" rx="5" />
-        <rect id="temp-strip-fill" class="temp-strip-fill" x="96" y="24" width="0" height="10" rx="5" />
+        <rect class="panel-plate" x="0" y="0" width="180" height="52" rx="6" />
+        <text class="readout" x="10" y="15">高さ <tspan id="height-value">0</tspan> / 100</text>
+        <text class="readout-small" x="10" y="28">実際の高さ（m）ではありません</text>
+        <text class="readout" x="10" y="43">気温 <tspan id="temp-value">15.0</tspan>℃</text>
+        <rect class="temp-strip-bg" x="96" y="34" width="76" height="10" rx="5" />
+        <rect id="temp-strip-fill" class="temp-strip-fill" x="96" y="34" width="0" height="10" rx="5" />
       </g>
 
       <!-- 水蒸気ゲージ（主役、反転済み）: 塗り＝水蒸気の量（高さを変えても動かないが、
@@ -158,6 +162,6 @@
     </div>
   </div>
 
-  <script src="./script.js?v=35"></script>
+  <script src="./script.js?v=36"></script>
 </body>
 </html>
