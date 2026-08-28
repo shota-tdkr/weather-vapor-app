@@ -65,6 +65,22 @@ body {
   color: #eaeaea;
 }
 
+/* 「お題に挑戦」はこのアプリの主要体験なので塗りつぶしで目立たせる。色は既存の
+   濃紺(#1c2541)＋地の薄グレー(#eaeaea)のみ＝色数は増やさない。tutorial-next /
+   quiz-next-button と同じ塗り。「使い方を見る」「自由に触る」は枠線のまま補助扱い */
+.quiz-start-button {
+  background: #1c2541;
+  color: #eaeaea;
+  font-weight: bold;
+  /* 「使い方を見る」と同じ大きさに揃える（差別化は塗り／位置／太字で行う） */
+  padding: 0.4rem 0.9rem;
+}
+
+.quiz-start-button:hover {
+  background: #eaeaea;
+  color: #1c2541;
+}
+
 .quiz-panel,
 .quiz-summary {
   max-width: 600px;

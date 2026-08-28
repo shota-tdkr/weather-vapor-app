@@ -5,14 +5,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>天気のたね</title>
   <!-- ?v=N はキャッシュ対策。style.css/script.js を編集したら両方の番号を1つ上げる -->
-  <link rel="stylesheet" href="./style.css?v=36">
+  <link rel="stylesheet" href="./style.css?v=37">
 </head>
 <body>
   <h1 class="app-title">天気のたね</h1>
-  <p class="app-subtitle">この空気は、どのくらい上げると雲ができるだろう？</p>
+  <!-- サブタイトルは「何をするアプリか」を常時伝える一行（お題の問題文が独立したため
+       旧「この空気は…だろう？」の問いかけはここでは不要になった）。お題モード中は
+       スマホで非表示になる（style.css の body.quiz-mode 参照） -->
+  <p class="app-subtitle">予想して、空気を山に近づけて、雲ができる瞬間を見つけよう。</p>
+  <!-- 「お題に挑戦」がこのアプリの主要体験なので、先頭＋塗りつぶし（既存の濃紺）。
+       「使い方を見る」は補助なので枠線のみ -->
   <div class="toolbar">
-    <button id="tutorial-replay" class="tutorial-replay" type="button"></button>
     <button id="quiz-start-button" class="quiz-start-button" type="button"></button>
+    <button id="tutorial-replay" class="tutorial-replay" type="button"></button>
   </div>
 
   <!-- お題モード: 「レバーを動かすだけ」という弟さんの反応を受けて追加。予想してから
@@ -162,6 +167,6 @@
     </div>
   </div>
 
-  <script src="./script.js?v=36"></script>
+  <script src="./script.js?v=37"></script>
 </body>
 </html>
