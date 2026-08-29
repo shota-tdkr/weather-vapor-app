@@ -10,6 +10,7 @@ const vaporCapLine = document.getElementById("vapor-cap-line");
 const vaporCapLabel = document.getElementById("vapor-cap-label");
 const excessValueEl = document.getElementById("excess-value");
 const excessReadoutEl = document.getElementById("excess-readout");
+const cloudFlashEl = document.getElementById("cloud-flash");
 const legendEl = document.getElementById("legend");
 const distanceLever = document.getElementById("distance-lever");
 const distanceLeverFill = document.getElementById("distance-lever-fill");
@@ -125,6 +126,9 @@ const MESSAGES = {
   logExcessMore: "→ 水滴になった量が増えました",
   logExcessLess: "→ 水滴になった量が減りました",
   logExcessStillRoom: "→ まだ水蒸気を抱えられるので、水滴はできていません",
+  // 雲ができた瞬間にマップ上へ数秒だけ出す一行（変化ログは読まれないことがあるため、
+  // 因果の要点をその場・その瞬間に出す。詳細は従来どおり変化ログが補う）
+  cloudFlash: "抱えきれなくなった！",
   logCloudStart: "→ 水蒸気を抱えきれなくなり、雲ができました",
   logCloudEnd: "→ 水蒸気の量が抱えられる量を下回り、雲が消えました",
   // 水蒸気の量スライダーを切り替えたときの変化ログ。高さは変えていないので、
@@ -372,6 +376,25 @@ let previousHeight = 0;
 // updateGauges()の外から参照する（maybeRevealQuizAnswer()参照）
 let lastCloudVisible = false;
 
+// 雲ができた瞬間の演出。マップ上に一行を数秒だけ出し、雲を軽く弾ませる。
+// あふれが0→0より大きくなった瞬間だけ呼ぶ（既に雲が出ている間の増減では呼ばない）
+const CLOUD_FLASH_DURATION = 2500; // ms
+let cloudFlashTimer = null;
+
+function flashCloudMoment() {
+  cloudFlashEl.setAttribute("opacity", "1");
+  if (cloudFlashTimer) clearTimeout(cloudFlashTimer);
+  cloudFlashTimer = setTimeout(() => {
+    cloudFlashEl.setAttribute("opacity", "0");
+    cloudFlashTimer = null;
+  }, CLOUD_FLASH_DURATION);
+
+  // 雲を軽く弾ませる（上昇エフェクトと同じ「クラスを外して次フレームで付け直す」
+  // 方式でアニメーションを再生し直す）
+  airMassCloud.classList.remove("pop");
+  requestAnimationFrame(() => airMassCloud.classList.add("pop"));
+}
+
 function updateGauges(height) {
   const temp = INITIAL_TEMP - height * LAPSE_RATE;
   const capacity = saturationVaporAmount(temp);
@@ -442,7 +465,14 @@ function updateGauges(height) {
     airMassCloud.setAttribute("d", CLOUD_PATHS[visibleStepCount - 1]);
   }
   airMassCloud.setAttribute("opacity", visibleStepCount > 0 ? 1 : 0);
-  lastCloudVisible = visibleStepCount > 0;
+
+  // 雲ができた瞬間（あふれが0→0より大きくなった瞬間）だけ演出する。
+  // 既にあふれている状態での増減や、雲が消える向きでは出さない
+  const cloudVisible = visibleStepCount > 0;
+  if (cloudVisible && !lastCloudVisible) {
+    flashCloudMoment();
+  }
+  lastCloudVisible = cloudVisible;
 }
 
 const CHANGE_LOG_MIN_HEIGHT_DELTA = 3; // これ未満の高さ変化はログに残さない
@@ -987,6 +1017,7 @@ distanceLeverCaptionEl.textContent = MESSAGES.leverCaptionDistance;
 distanceLever.setAttribute("aria-label", MESSAGES.leverAriaDistance);
 vaporLevelCaptionEl.textContent = MESSAGES.leverCaptionVapor;
 vaporLevelLever.setAttribute("aria-label", MESSAGES.leverAriaVapor);
+cloudFlashEl.textContent = MESSAGES.cloudFlash;
 
 positionAirMass(currentDistance);
 renderVaporLevelControl();

@@ -419,6 +419,39 @@ body {
   transition: opacity 0.3s ease;
 }
 
+/* 雲ができた瞬間だけ軽く弾ませる（派手にしない。0.45秒で終わる小さなスケール変化）。
+   注意: CSSのtransformはHTML側のtransform属性(translate(0,-10))を上書きするので、
+   キーフレームにも同じtranslateを含めて位置がずれないようにしている。
+   transform-boxを指定しないとSVGのtransform-originがビューポート基準になる */
+#air-mass-cloud.pop {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: cloud-pop 0.45s ease-out;
+}
+
+@keyframes cloud-pop {
+  0% {
+    transform: translate(0px, -10px) scale(0.86);
+  }
+  60% {
+    transform: translate(0px, -10px) scale(1.06);
+  }
+  100% {
+    transform: translate(0px, -10px) scale(1);
+  }
+}
+
+/* 雲ができた瞬間の一行（マップ上・固定位置）。因果の要点をその場・その瞬間に出す。
+   色は既存の濃紺のみ。opacity/文言はJSが入れるのでここには書かない */
+.cloud-flash {
+  font-size: 16px;
+  font-weight: bold;
+  fill: #1c2541;
+  text-anchor: middle;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+
 .lift-arrow {
   fill: #eaeaea;
   stroke: #1c2541;
