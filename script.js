@@ -53,6 +53,7 @@ const quizSummaryEl = document.getElementById("quiz-summary");
 const quizSummaryTitleEl = document.getElementById("quiz-summary-title");
 const quizSummaryTableWrap = document.getElementById("quiz-summary-table-wrap");
 const quizSummaryConclusionEl = document.getElementById("quiz-summary-conclusion");
+const quizSummaryTermEl = document.getElementById("quiz-summary-term");
 const quizRestartButton = document.getElementById("quiz-restart-button");
 const quizSummaryExitButton = document.getElementById("quiz-summary-exit-button");
 const vaporLevelPanel = document.getElementById("vapor-level-panel");
@@ -108,6 +109,11 @@ const MESSAGES = {
   changeLogTitle: "変化ログ",
   logLifted: "空気の塊を持ち上げました",
   logLowered: "空気の塊を下ろしました",
+  // 「上げると冷える」の中間過程。教科書（中学理科・雲のでき方）:「空気は上昇すると
+  // まわりの気圧が小さくなるため膨張する。そのため上昇する空気の温度は下がり…」。
+  // 下げるときは逆（気圧が上がって縮む＝断熱圧縮で温まる）
+  logExpand: "→ まわりの気圧が下がり、空気がふくらみました",
+  logCompress: "→ まわりの気圧が上がり、空気が縮みました",
   logTempDrop: (from, to) => `→ 気温が${from}℃から${to}℃に下がりました`,
   logTempRise: (from, to) => `→ 気温が${from}℃から${to}℃に上がりました`,
   logCapacityDrop: (from, to) => `→ 抱えられる水蒸気の量が${from}g/m³から${to}g/m³に減りました`,
@@ -177,6 +183,10 @@ const MESSAGES = {
   quizSummaryAirCell: (label, value) => `${label} (${value})`,
   quizSummaryConclusion:
     "同じ山でも、空気にふくまれる水蒸気の量が違うと、雲ができる高さが変わりましたね。",
+  // 学校の授業・テストに戻ったときに使えるよう、まとめの最後に正式用語へ橋渡しする。
+  // 初見では「上限」で通し、最後にここで名前を渡す（design.md「お題モード」参照）
+  quizSummaryTerm:
+    "アプリで見てきた「抱えられる上限」を、理科では飽和水蒸気量といいます。テストや授業でこの言葉が出てきたら、上限の点線を思い出そう。",
   quizRestartButtonLabel: "もう一度挑戦する",
 };
 
@@ -473,6 +483,10 @@ function buildHeightChangeLog(beforeHeight, afterHeight) {
   const rising = afterHeight > beforeHeight;
 
   const lines = [rising ? MESSAGES.logLifted : MESSAGES.logLowered];
+
+  // 「なぜ上げると冷えるのか」の中間過程（気圧が下がる→膨張する）を1段はさむ。
+  // 段階表示のキューにそのまま乗るので、全体の所要時間が+0.35秒になる
+  lines.push(rising ? MESSAGES.logExpand : MESSAGES.logCompress);
 
   lines.push(
     rising
@@ -928,6 +942,7 @@ function showQuizSummary() {
     `<th scope="col">${MESSAGES.quizSummaryHeadActual}</th>` +
     `</tr></thead><tbody>${bodyRows}</tbody></table>`;
   quizSummaryConclusionEl.textContent = MESSAGES.quizSummaryConclusion;
+  quizSummaryTermEl.textContent = MESSAGES.quizSummaryTerm;
 }
 
 function exitQuiz() {

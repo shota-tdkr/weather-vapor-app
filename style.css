@@ -227,6 +227,15 @@ body {
   margin: 0 0 0.7rem;
 }
 
+/* 正式用語（飽和水蒸気量）への橋渡し。破線で区切って「授業に持ち帰る一言」として
+   置く。本文よりやや小さめ */
+.quiz-summary-term {
+  margin: 0 0 0.8rem;
+  padding-top: 0.6rem;
+  border-top: 1px dashed #1c2541;
+  font-size: 0.85rem;
+}
+
 .quiz-summary-actions {
   display: flex;
   gap: 0.6rem;

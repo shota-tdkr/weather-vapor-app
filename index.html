@@ -3,12 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>天気のたね</title>
+  <title>雲のたね</title>
   <!-- ?v=N はキャッシュ対策。style.css/script.js を編集したら両方の番号を1つ上げる -->
-  <link rel="stylesheet" href="./style.css?v=40">
+  <link rel="stylesheet" href="./style.css?v=41">
 </head>
 <body>
-  <h1 class="app-title">天気のたね</h1>
+  <h1 class="app-title">雲のたね</h1>
   <!-- サブタイトルは「何をするアプリか」を常時伝える一行（お題の問題文が独立したため
        旧「この空気は…だろう？」の問いかけはここでは不要になった）。お題モード中は
        スマホで非表示になる（style.css の body.quiz-mode 参照） -->
@@ -43,6 +43,9 @@
     <p id="quiz-summary-title" class="quiz-summary-title"></p>
     <div id="quiz-summary-table-wrap" class="quiz-summary-table-wrap"></div>
     <p id="quiz-summary-conclusion" class="quiz-summary-conclusion"></p>
+    <!-- 学校で使う正式用語（飽和水蒸気量）への橋渡し。まとめの一番下に、破線で
+         区切って「授業に持ち帰る一言」として置く -->
+    <p id="quiz-summary-term" class="quiz-summary-term"></p>
     <div class="quiz-summary-actions">
       <button id="quiz-restart-button" class="quiz-restart-button" type="button"></button>
       <button id="quiz-summary-exit-button" class="quiz-exit-button" type="button"></button>
@@ -193,6 +196,6 @@
     </div>
   </div>
 
-  <script src="./script.js?v=40"></script>
+  <script src="./script.js?v=41"></script>
 </body>
 </html>
