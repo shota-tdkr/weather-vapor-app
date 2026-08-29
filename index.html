@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>雲のたね</title>
   <!-- ?v=N はキャッシュ対策。style.css/script.js を編集したら両方の番号を1つ上げる -->
-  <link rel="stylesheet" href="./style.css?v=43">
+  <link rel="stylesheet" href="./style.css?v=44">
 </head>
 <body>
   <h1 class="app-title">雲のたね</h1>
@@ -32,6 +32,10 @@
     <p id="quiz-question" class="quiz-question"></p>
     <div id="quiz-choices" class="quiz-choices"></div>
     <p id="quiz-hint" class="quiz-hint"></p>
+    <!-- タイプB・Cの「確かめる」。予想後にここへ出て、押すと空気の塊が自動で
+         上がる（操作の精度で結果が変わらないようにするため。design.md参照）。
+         タイプAでは使わない（距離レバーを手で動かす） -->
+    <button id="quiz-verify-button" class="quiz-verify-button" type="button" hidden></button>
     <div id="quiz-reveal" class="quiz-reveal" hidden>
       <p id="quiz-your-guess" class="quiz-your-guess"></p>
       <p id="quiz-reveal-text" class="quiz-reveal-text"></p>
@@ -152,6 +156,17 @@
            狭い画面で読めない/はみ出す場合はCSSで2行目を隠す）。opacity・文言はJSが
            入れるのでCSSに書かない -->
       <text id="cloud-flash" class="cloud-flash" x="96" y="80" opacity="0"><tspan id="cloud-flash-main" x="96"></tspan><tspan id="cloud-flash-sub" class="cloud-flash-sub" x="96" dy="15"></tspan></text>
+
+      <!-- お題タイプC（どちらが先に雲になる?）専用。A・Bそれぞれが雲になった高さに
+           水平の破線を残す。線が下にある方＝低い高さで雲になった方＝水蒸気が多い方
+           （学習目標⑤を数字なしで伝える）。上限の点線と同じ濃紺の破線＝色は増やさない。
+           y座標・opacityはJSが入れる。狭い画面ではラベルを隠して線だけ残す（CSS） -->
+      <g id="quiz-cmp-lines" opacity="0">
+        <line id="quiz-cmp-line-a" class="quiz-cmp-line" x1="6" x2="394" y1="0" y2="0" />
+        <text id="quiz-cmp-label-a" class="quiz-cmp-label" x="10" y="0">A</text>
+        <line id="quiz-cmp-line-b" class="quiz-cmp-line" x1="6" x2="394" y1="0" y2="0" opacity="0" />
+        <text id="quiz-cmp-label-b" class="quiz-cmp-label" x="394" y="0" text-anchor="end" opacity="0">B</text>
+      </g>
     </svg>
 
     <!-- 距離レバー: マップ外・横向き・全幅。左＝遠い、右＝山に近い、で指の動きと
@@ -206,6 +221,6 @@
     </div>
   </div>
 
-  <script src="./script.js?v=43"></script>
+  <script src="./script.js?v=44"></script>
 </body>
 </html>

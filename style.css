@@ -175,7 +175,8 @@ body {
 }
 
 .quiz-next-button,
-.quiz-restart-button {
+.quiz-restart-button,
+.quiz-verify-button {
   font-family: inherit;
   font-size: 0.9rem;
   padding: 0.4rem 1rem;
@@ -184,6 +185,13 @@ body {
   background: #1c2541;
   color: #eaeaea;
   cursor: pointer;
+}
+
+/* タイプB・Cの「確かめる」ボタン。既存の次へボタンと同じ見た目（新スタイルは
+   増やさない）。空のヒント行の下に単独で出るので、上に少し間隔を空ける */
+.quiz-verify-button {
+  display: inline-block;
+  margin-top: 0.5rem;
 }
 
 .quiz-summary-title {
@@ -221,6 +229,13 @@ body {
   text-align: left;
   font-weight: normal;
   white-space: nowrap;
+}
+
+/* まとめ表の問題セルは、タイプが混在すると1列目が長くなる。通常は full 表記、
+   狭い画面（下の media query）では short 表記に差し替える（既存のフォント詰めと
+   同じ考え方で、狭い画面向けの短縮を1段追加しただけ） */
+.quiz-summary-table .q-short {
+  display: none;
 }
 
 .quiz-summary-conclusion {
@@ -354,6 +369,26 @@ body {
   stroke: #1c2541;
   stroke-width: 3;
   stroke-dasharray: 5 3;
+}
+
+/* お題タイプC の比較線（A・Bが雲になった高さの水平線）。上限の点線と同じ
+   視覚言語＝濃紺の破線で「境目」を表す。色は増やさない。線が下にある方＝低い
+   高さで雲になった方（＝水蒸気が多い方）。y座標・opacityはJSが入れる */
+#quiz-cmp-lines {
+  transition: opacity 0.25s ease;
+  pointer-events: none;
+}
+
+.quiz-cmp-line {
+  stroke: #1c2541;
+  stroke-width: 2;
+  stroke-dasharray: 4 3;
+}
+
+.quiz-cmp-label {
+  font-size: 11px;
+  font-weight: bold;
+  fill: #1c2541;
 }
 
 /* 空の背景色。○の白いfill（雲）が#eaeaea背景だとほぼ見分けられなかったため追加
@@ -693,6 +728,21 @@ body {
      1行目（見た現象そのまま）だけにする */
   .cloud-flash-sub {
     display: none;
+  }
+
+  /* タイプC の比較線: 狭い画面ではラベル(A/B)が小さすぎるので隠し、線だけ残す
+     （cloud-flash-sub と同じ判断。線の上下関係は残るので「どちらが低いか」は伝わる） */
+  .quiz-cmp-label {
+    display: none;
+  }
+
+  /* まとめ表の1列目は短縮形に差し替える（タイプ混在で長くなるため） */
+  .quiz-summary-table .q-full {
+    display: none;
+  }
+
+  .quiz-summary-table .q-short {
+    display: inline;
   }
 
   /* お題モード中のスマホ限定の縦詰め（design.md「お題モード」／PC表示は変えない）。

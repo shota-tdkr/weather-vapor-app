@@ -48,6 +48,12 @@ const quizExitButton = document.getElementById("quiz-exit-button");
 const quizQuestionEl = document.getElementById("quiz-question");
 const quizChoicesEl = document.getElementById("quiz-choices");
 const quizHintEl = document.getElementById("quiz-hint");
+const quizVerifyButton = document.getElementById("quiz-verify-button");
+const quizCmpLinesEl = document.getElementById("quiz-cmp-lines");
+const quizCmpLineA = document.getElementById("quiz-cmp-line-a");
+const quizCmpLabelA = document.getElementById("quiz-cmp-label-a");
+const quizCmpLineB = document.getElementById("quiz-cmp-line-b");
+const quizCmpLabelB = document.getElementById("quiz-cmp-label-b");
 const quizRevealEl = document.getElementById("quiz-reveal");
 const quizYourGuessEl = document.getElementById("quiz-your-guess");
 const quizRevealTextEl = document.getElementById("quiz-reveal-text");
@@ -178,24 +184,49 @@ const MESSAGES = {
     `水蒸気が「${label}」空気です。（${heldVapor} g/m³）\n高さがどのくらいになると、雲ができるだろう？`,
   quizChoiceLabel: (index, value) => `${["①", "②", "③", "④"][index]}${value}くらい`,
   quizCheckingHint: "距離レバーを動かして、実際に確かめてみよう",
+  // タイプB（この高さで雲はできる?）とタイプC（どちらが先に雲になる?）。個別値の
+  // 暗記に頼らず「条件を変えたときに結果がどう変わるか」で答えられる問い方
+  // （docs/design.md「お題の形式」／docs/future.md 参照）。確かめる操作は自動再生に
+  // して、操作の精度で結果が変わる余地をなくす
+  quizQuestionB: (label, value, height) =>
+    `水蒸気が「${label}」空気（${value} g/m³）です。\n高さ${height}まで上げたら、雲はできる？`,
+  quizQuestionC: (aLabel, aValue, bLabel, bValue) =>
+    `A: 「${aLabel}」(${aValue})　B: 「${bLabel}」(${bValue})\nどちらが低い高さで雲になる？`,
+  quizChoiceCanForm: "できる",
+  quizChoiceCannotForm: "まだできない",
+  quizChoiceA: "A",
+  quizChoiceB: "B",
+  quizVerifyButtonLabel: "確かめる",
+  quizVerifyHint: "「確かめる」を押すと、空気の塊が自動で上がっていきます",
   quizYourGuess: (label) => `あなたの予想: ${label}`,
   quizRevealMatched: "予想どおりでした！",
   // actual は選択肢に揃えた値（実測が9でも選択肢の10で見せる。10と9の差は
   // 学習上意味がなく、選択肢と解説の食い違いによる混乱の方が問題）
   quizRevealText: (actual, heldVapor) =>
     `実際は${actual}くらいでした。この空気は水蒸気を${heldVapor}g/m³ふくんでいるので、${actual}まで上げると水蒸気の量が上限をこえます。`,
+  quizRevealTextB: (label, value, height, canForm) =>
+    canForm
+      ? `高さ${height}で雲ができました。「${label}」空気（${value} g/m³）は、この高さで上限をこえます。`
+      : `高さ${height}ではまだ雲ができません。「${label}」空気（${value} g/m³）は、もっと上げないと上限をこえません。`,
+  quizRevealTextC: (winner, winnerLabel) =>
+    `${winner}（水蒸気が「${winnerLabel}」空気）の方が、低い高さで雲になりました。水蒸気が多いほど、少し上げただけで上限をこえます。`,
   quizNextButtonLabel: "次の問題へ",
   quizFinishButtonLabel: "まとめを見る",
   quizSummaryTitle: "4問終わりました",
-  // 4問のまとめ表: 水蒸気の量が少ない順に、予想と実際を並べる。「正解/不正解」は
-  // 出さず、数字の並びだけ見せる（ずれた箇所が自分で分かる／量が増えるほど雲が
-  // 低い高さでできることが並びで一目で分かる。design.md「お題モード」参照）
-  quizSummaryHeadAir: "空気",
+  // 4問のまとめ表: 予想と実際を出題順に並べる。「正解/不正解」は出さず、見比べれば
+  // どこがずれたか分かる形にする（design.md「お題モード」参照）。タイプが混在するため
+  // 水蒸気量ソートはやめた。1列目は問題（タイプごとに書式が違う。狭い画面は短縮形）
+  quizSummaryHeadQuestion: "問題",
   quizSummaryHeadGuess: "あなたの予想",
   quizSummaryHeadActual: "実際",
   quizSummaryAirCell: (label, value) => `${label} (${value})`,
-  quizSummaryConclusion:
-    "同じ山でも、空気にふくまれる水蒸気の量が違うと、雲ができる高さが変わりましたね。",
+  quizSummaryCellB: (label, value, height) => `「${label}」(${value}) 高さ${height}`,
+  quizSummaryCellBShort: (label, height) => `「${label}」高さ${height}`,
+  quizSummaryCellC: (aLabel, aValue, bLabel, bValue) => `「${aLabel}」(${aValue}) ⇔ 「${bLabel}」(${bValue})`,
+  quizSummaryCellCShort: (aLabel, bLabel) => `「${aLabel}」⇔「${bLabel}」`,
+  // タイプCが必ず1問入り、比較を直接体験する。A/Bの実際列に傾向が並ばなくなる代わり
+  // （design.md「お題の形式」で了承済み）
+  quizSummaryConclusion: "水蒸気が多い空気ほど、低い高さで雲になりましたね。",
   // 学校の授業・テストに戻ったときに使えるよう、まとめの最後に正式用語へ橋渡しする。
   // 初見では「上限」で通し、最後にここで名前を渡す（design.md「お題モード」参照）
   quizSummaryTerm:
@@ -234,18 +265,63 @@ const VAPOR_LEVEL_INITIAL_INDEX = 2;
 let vaporLevelIndex = VAPOR_LEVEL_INITIAL_INDEX;
 let currentHeldVapor = VAPOR_LEVELS[vaporLevelIndex].value;
 
-// お題モード: 水蒸気の量の4段階それぞれで1問ずつ、計4問。いきなり極端な値
-// (少ない/多い)から始めず、標準的なもの(やや多い)から入ってばらつかせる順番
-// にしている（design.md「お題モード」参照）。正解の高さはハードコードせず、
-// 実際に雲ができた瞬間のcurrentHeightから毎回算出する（モデルの定数を
-// 変更しても答えがズレない）
-const QUIZ_QUESTIONS = [
-  { vaporLevelIndex: 2 }, // やや多い(9.4) → 25くらい
-  { vaporLevelIndex: 0 }, // 少ない(4.8) → 75くらい
-  { vaporLevelIndex: 3 }, // 多い(11.6) → 9くらい
-  { vaporLevelIndex: 1 }, // やや少ない(6.8) → 50くらい
-];
+// お題モードは1回4問。毎回、問題プールから タイプA:2問 / タイプB:1問 / タイプC:1問 を
+// ランダムに選ぶ（1問目は必ずタイプA＝最も基本的な問い方で入る。docs/design.md
+// 「お題の形式」参照）。正解はどのタイプもハードコードせず、確かめる段階で実際に
+// 雲が出た瞬間の高さから判定する（モデルの定数を変えても答えがズレない）。
+//
+// タイプA: 雲ができる高さを4択で予想（4段階 × 1問 = 4問）
+// タイプB: 指定した高さで雲はできるか（4段階 × 5高さ = 20問）
+// タイプC: 2つの空気のどちらが低い高さで雲になるか（4段階から2つ = 6組）
+const QUIZ_POOL_A = VAPOR_LEVELS.map((_, i) => ({ type: "A", vaporLevelIndex: i }));
 const QUIZ_CHOICES = [10, 25, 50, 75];
+
+// タイプBの高さ段階。「できる」10問／「まだできない」10問でちょうど半々、かつ
+// 4段階すべてで両方の答えが出るように選んだ（例: 上限を70にすると「少ない」は
+// 常に「まだできない」になり、段階と答えの対応を暗記できてしまう。5と90を含めて
+// それを潰している。docs/design.md「お題の形式」参照）
+const QUIZ_TYPE_B_HEIGHTS = [5, 20, 40, 65, 90];
+const QUIZ_POOL_B = [];
+for (let vi = 0; vi < VAPOR_LEVELS.length; vi++) {
+  for (const h of QUIZ_TYPE_B_HEIGHTS) {
+    QUIZ_POOL_B.push({ type: "B", vaporLevelIndex: vi, targetHeight: h });
+  }
+}
+
+// タイプC: 4段階から2つ選ぶ6組。aIndex < bIndex なので B（bIndex側）の方が必ず
+// 水蒸気が多く、低い高さで雲になる（＝正解は必ず B）。ただし判定はハードコード
+// せず自動再生の結果から行う
+const QUIZ_POOL_C = [];
+for (let i = 0; i < VAPOR_LEVELS.length; i++) {
+  for (let j = i + 1; j < VAPOR_LEVELS.length; j++) {
+    QUIZ_POOL_C.push({ type: "C", aIndex: i, bIndex: j });
+  }
+}
+
+function pickRandom(arr) {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+function shuffleInPlace(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+// 4問を組む。1問目＝タイプA固定。残り3問＝タイプA（1問目と段階が重複しない）／
+// タイプB／タイプC をシャッフル。この構成の固定で「各タイプ最低1問」が自動的に
+// 保証され、抽選の偏りチェックが不要になる
+function buildQuizQuestions() {
+  const aFirst = pickRandom(QUIZ_POOL_A);
+  const aSecond = pickRandom(QUIZ_POOL_A.filter((q) => q.vaporLevelIndex !== aFirst.vaporLevelIndex));
+  const b = pickRandom(QUIZ_POOL_B);
+  const c = pickRandom(QUIZ_POOL_C);
+  return [aFirst, ...shuffleInPlace([aSecond, b, c])];
+}
+
+let quizQuestions = [];
 
 let quizActive = false;
 let quizQuestionIndex = 0;
@@ -681,6 +757,13 @@ function heightFromDistance(distance) {
   return MOUNTAIN_MAX_HEIGHT * (1 - distance / MOUNTAIN_INFLUENCE_RADIUS);
 }
 
+// heightFromDistance の逆。お題モードのタイプB・Cが、目標の高さから距離レバーの
+// 位置を逆算して自動再生するために使う（距離レバーを手で動かすのと同じ経路になる）
+function distanceForHeight(height) {
+  const clampedHeight = clamp(height, 0, MOUNTAIN_MAX_HEIGHT);
+  return MOUNTAIN_INFLUENCE_RADIUS * (1 - clampedHeight / MOUNTAIN_MAX_HEIGHT);
+}
+
 // ○のx座標（距離レバーだけで決まる）。現実の地形性上昇と同じく、
 // ①水平に山へ近づく → ②斜面にぶつかってから斜面沿いに登る、の2段階のx軌道を使う
 // （斜め一直線に山頂へ向かうと、風に流されて山に登るという現象として不自然に見えるため）
@@ -855,18 +938,58 @@ function quizChoiceLabel(index) {
   return MESSAGES.quizChoiceLabel(index, QUIZ_CHOICES[index]);
 }
 
-// 選択肢ボタンの描画とhinttextの更新のみを行う（正解発表はrenderQuizReveal）。
-// phaseに応じてボタンの選択状態・disabledを切り替える
+function currentQuizQuestion() {
+  return quizQuestions[quizQuestionIndex];
+}
+
+function isLastQuizQuestion() {
+  return quizQuestionIndex === quizQuestions.length - 1;
+}
+
+// 出題中の問題タイプに応じた選択肢ラベルの配列
+function quizChoiceLabels(q) {
+  if (q.type === "A") return QUIZ_CHOICES.map((value, index) => MESSAGES.quizChoiceLabel(index, value));
+  if (q.type === "B") return [MESSAGES.quizChoiceCanForm, MESSAGES.quizChoiceCannotForm];
+  return [MESSAGES.quizChoiceA, MESSAGES.quizChoiceB];
+}
+
+// 選択肢ボタンの描画とヒント／「確かめる」ボタンの出し分けのみを行う（正解発表は
+// revealQuizAnswer*）。phaseに応じてボタンの選択状態・disabledを切り替える
 function renderQuizQuestion() {
-  quizProgressEl.textContent = MESSAGES.quizProgress(quizQuestionIndex + 1, QUIZ_QUESTIONS.length);
-  const questionLevel = VAPOR_LEVELS[QUIZ_QUESTIONS[quizQuestionIndex].vaporLevelIndex];
-  quizQuestionEl.textContent = MESSAGES.quizQuestion(questionLevel.label, questionLevel.value.toFixed(1));
-  quizChoicesEl.innerHTML = QUIZ_CHOICES.map((value, index) => {
-    const selected = quizSelectedChoice === index;
-    const disabled = quizPhase !== "choosing";
-    return `<button type="button" class="quiz-choice-button${selected ? " selected" : ""}" data-index="${index}" ${disabled ? "disabled" : ""}>${quizChoiceLabel(index)}</button>`;
-  }).join("");
-  quizHintEl.textContent = quizPhase === "checking" ? MESSAGES.quizCheckingHint : "";
+  const q = currentQuizQuestion();
+  quizProgressEl.textContent = MESSAGES.quizProgress(quizQuestionIndex + 1, quizQuestions.length);
+
+  if (q.type === "A") {
+    const lv = VAPOR_LEVELS[q.vaporLevelIndex];
+    quizQuestionEl.textContent = MESSAGES.quizQuestion(lv.label, lv.value.toFixed(1));
+  } else if (q.type === "B") {
+    const lv = VAPOR_LEVELS[q.vaporLevelIndex];
+    quizQuestionEl.textContent = MESSAGES.quizQuestionB(lv.label, lv.value.toFixed(1), q.targetHeight);
+  } else {
+    const a = VAPOR_LEVELS[q.aIndex];
+    const b = VAPOR_LEVELS[q.bIndex];
+    quizQuestionEl.textContent = MESSAGES.quizQuestionC(a.label, a.value.toFixed(1), b.label, b.value.toFixed(1));
+  }
+
+  const choosing = quizPhase === "choosing";
+  quizChoicesEl.innerHTML = quizChoiceLabels(q)
+    .map((label, index) => {
+      const selected = quizSelectedChoice === index;
+      return `<button type="button" class="quiz-choice-button${selected ? " selected" : ""}" data-index="${index}" ${
+        choosing ? "" : "disabled"
+      }>${label}</button>`;
+    })
+    .join("");
+
+  // タイプA は距離レバーを手で動かして確かめる。タイプB・C は「確かめる」ボタンで
+  // 自動再生する（操作の精度で結果が変わる余地をなくすため。design.md参照）
+  const showVerify = quizPhase === "checking" && q.type !== "A";
+  quizVerifyButton.hidden = !showVerify;
+  quizVerifyButton.disabled = !showVerify;
+  if (showVerify) quizVerifyButton.textContent = MESSAGES.quizVerifyButtonLabel;
+
+  quizHintEl.textContent =
+    quizPhase === "checking" ? (q.type === "A" ? MESSAGES.quizCheckingHint : MESSAGES.quizVerifyHint) : "";
   quizRevealEl.hidden = true;
 }
 
@@ -874,9 +997,11 @@ function selectQuizChoice(index) {
   if (quizPhase !== "choosing") return;
   quizSelectedChoice = index;
   quizPhase = "checking";
-  setDistanceLeverLocked(false);
+  const q = currentQuizQuestion();
+  // タイプA だけ距離レバーを解放する。B・C は自動再生なので距離レバーはロックのまま
+  if (q.type === "A") setDistanceLeverLocked(false);
   renderQuizQuestion();
-  maybeRevealQuizAnswer();
+  if (q.type === "A") maybeRevealQuizAnswer();
 }
 
 quizChoicesEl.addEventListener("click", (event) => {
@@ -885,17 +1010,176 @@ quizChoicesEl.addEventListener("click", (event) => {
   selectQuizChoice(Number(button.dataset.index));
 });
 
-// 距離レバーをドラッグするたびに呼ばれ、「予想を選択済み・まだ答え合わせして
-// いない」状態で雲が現れた瞬間だけ答え合わせを表示する
+quizVerifyButton.addEventListener("click", () => {
+  const q = currentQuizQuestion();
+  if (q.type === "B") runQuizVerifyB();
+  else if (q.type === "C") runQuizVerifyC();
+});
+
+// 距離レバーをドラッグするたびに呼ばれ、タイプA で「予想を選択済み・まだ答え合わせ
+// していない」状態で雲が現れた瞬間だけ答え合わせを表示する（B・C は自動再生側で
+// 判定するのでここでは扱わない）
 function maybeRevealQuizAnswer() {
-  if (quizActive && quizPhase === "checking" && lastCloudVisible) {
+  const q = quizQuestions[quizQuestionIndex];
+  if (quizActive && q && q.type === "A" && quizPhase === "checking" && lastCloudVisible) {
     revealQuizAnswer();
   }
 }
 
+// --- 自動再生（タイプB・C の「確かめる」） -------------------------------------
+// 目標の高さまで、距離レバーを手で動かすのと同じ経路で自動的に上げる。毎フレーム
+// positionAirMass + updateGauges を呼ぶだけなので、雲の出現・「ここで雲ができた！」
+// フラッシュ・雲の弾み・ゲージの斜線などの既存の仕組みがそのまま働く。
+// recordOnset:true のときは、雲が最初に見えたフレームの高さ(onsetHeight)を記録する
+// （タイプCで「どの高さで雲になったか」を実測から得るため）。
+const QUIZ_ANIM_B_MS = 1100; // タイプB: 0→目標高さ
+const QUIZ_ANIM_C_MS = 1500; // タイプC: 0→表示高さ95相当（雲ができる高さで通り過ぎる）
+const QUIZ_ANIM_C_PAUSE_MS = 900; // タイプC: A の結果を見せてから B を始めるまでの間
+const QUIZ_ANIM_C_TOP = (95 / HEIGHT_DISPLAY_SCALE) * MOUNTAIN_MAX_HEIGHT;
+
+let quizAnimFrame = null;
+let quizAnimTimer = null;
+
+function cancelQuizAnim() {
+  if (quizAnimFrame !== null) {
+    cancelAnimationFrame(quizAnimFrame);
+    quizAnimFrame = null;
+  }
+  if (quizAnimTimer !== null) {
+    clearTimeout(quizAnimTimer);
+    quizAnimTimer = null;
+  }
+  airMass.classList.remove("dragging");
+}
+
+function animateHeightTo(from, to, duration, { recordOnset = false, onDone } = {}) {
+  cancelQuizAnim();
+  const startTime = performance.now();
+  let onsetHeight = null;
+  airMass.classList.add("dragging"); // トランジションを切って毎フレーム1:1で動かす
+  function tick(now) {
+    const t = Math.min(1, (now - startTime) / duration);
+    const height = from + (to - from) * t; // 等速（レバーを一定の速さで動かすのと同じ）
+    currentHeight = height;
+    currentDistance = distanceForHeight(height);
+    positionAirMass(currentDistance);
+    updateGauges(currentHeight);
+    if (recordOnset && onsetHeight === null && lastCloudVisible) {
+      onsetHeight = currentHeight;
+    }
+    if (t >= 1) {
+      airMass.classList.remove("dragging");
+      quizAnimFrame = null;
+      if (onDone) onDone({ endHeight: currentHeight, onsetHeight, cloud: lastCloudVisible });
+      return;
+    }
+    quizAnimFrame = requestAnimationFrame(tick);
+  }
+  quizAnimFrame = requestAnimationFrame(tick);
+}
+
+// タイプC の比較線（雲になった高さに水平の破線を残す）。線が下にある方＝低い高さで
+// 雲になった方（学習目標⑤を数字なしで伝える）。
+// y は ○ の実際の位置(terrainY)ではなく、表示高さ(0-100)に比例した専用スケールを使う。
+// 理由: terrainY は「水平に近づく」区間が y=250 で平坦なので、低い高さ同士（多い/やや多い
+// など）だと線が重なって「どちらが低いか」が読めなくなる。比較線は高さの物差しに
+// 徹し、線が下＝低い高さ、が必ず成り立つようにする（○ は onset を通り過ぎて
+// 表示95まで上がるので、もともと線と ○ の位置は一致しない設計）
+const QUIZ_CMP_Y_TOP = 128; // 表示高さ100のときのy（山頂 y=120 のすぐ下）
+const QUIZ_CMP_Y_BOTTOM = 250; // 表示高さ0のときのy（○の初期yと同じ。地面 y=280 の上）
+
+function quizCmpLineY(internalHeight) {
+  const displayRatio = clamp(internalHeight / MOUNTAIN_MAX_HEIGHT, 0, 1);
+  return QUIZ_CMP_Y_BOTTOM - displayRatio * (QUIZ_CMP_Y_BOTTOM - QUIZ_CMP_Y_TOP);
+}
+
+function drawQuizCmpLine(lineEl, labelEl, internalHeight) {
+  const y = quizCmpLineY(internalHeight);
+  lineEl.setAttribute("y1", y);
+  lineEl.setAttribute("y2", y);
+  labelEl.setAttribute("y", y - 4);
+}
+
+function resetQuizCmpLines() {
+  quizCmpLinesEl.setAttribute("opacity", "0");
+  quizCmpLineB.setAttribute("opacity", "0");
+  quizCmpLabelB.setAttribute("opacity", "0");
+}
+
+function runQuizVerifyB() {
+  const q = currentQuizQuestion();
+  quizVerifyButton.hidden = true;
+  quizVerifyButton.disabled = true;
+  quizHintEl.textContent = "";
+  const targetInternal = (q.targetHeight / HEIGHT_DISPLAY_SCALE) * MOUNTAIN_MAX_HEIGHT;
+  animateHeightTo(0, targetInternal, QUIZ_ANIM_B_MS, {
+    onDone: () => {
+      // 変化ログはアニメ終了時に1回だけ（毎フレーム呼ぶとログが溢れる）
+      logHeightChange(0, targetInternal);
+      revealQuizAnswerB();
+    },
+  });
+}
+
+function runQuizVerifyC() {
+  const q = currentQuizQuestion();
+  quizVerifyButton.hidden = true;
+  quizVerifyButton.disabled = true;
+  quizHintEl.textContent = "";
+  resetQuizCmpLines();
+  quizCmpLinesEl.setAttribute("opacity", "1");
+
+  // A を再生（1問目=aIndex側）
+  setVaporLevel(q.aIndex, true);
+  currentHeight = 0;
+  currentDistance = distanceForHeight(0);
+  positionAirMass(currentDistance);
+  updateGauges(0);
+  animateHeightTo(0, QUIZ_ANIM_C_TOP, QUIZ_ANIM_C_MS, {
+    recordOnset: true,
+    onDone: (aResult) => {
+      const aOnset = aResult.onsetHeight !== null ? aResult.onsetHeight : aResult.endHeight;
+      drawQuizCmpLine(quizCmpLineA, quizCmpLabelA, aOnset);
+      logHeightChange(0, aOnset);
+      // A の結果を少し見せてから、無言でリセットして B を再生（AとBの間の
+      // リセットはログを出さない）
+      quizAnimTimer = setTimeout(() => {
+        quizAnimTimer = null;
+        if (!quizActive) return;
+        // 無言リセットは一瞬で（dragging クラスでトランジションを切る。○が
+        // 表示95からゆっくり落ちて見えないように）
+        airMass.classList.add("dragging");
+        currentHeight = 0;
+        currentDistance = distanceForHeight(0);
+        setVaporLevel(q.bIndex, true); // これが updateGauges(0) を呼ぶ＝雲が消え lastCloudVisible=false
+        positionAirMass(currentDistance);
+        animateHeightTo(0, QUIZ_ANIM_C_TOP, QUIZ_ANIM_C_MS, {
+          recordOnset: true,
+          onDone: (bResult) => {
+            const bOnset = bResult.onsetHeight !== null ? bResult.onsetHeight : bResult.endHeight;
+            quizCmpLineB.setAttribute("opacity", "1");
+            quizCmpLabelB.setAttribute("opacity", "1");
+            drawQuizCmpLine(quizCmpLineB, quizCmpLabelB, bOnset);
+            logHeightChange(0, bOnset);
+            revealQuizAnswerC(aOnset, bOnset);
+          },
+        });
+      }, QUIZ_ANIM_C_PAUSE_MS);
+    },
+  });
+}
+
+function pushQuizResultAndFinish(result, revealText, guessLabel) {
+  quizResults.push(result);
+  quizYourGuessEl.textContent = MESSAGES.quizYourGuess(guessLabel);
+  quizRevealTextEl.textContent = (result.matched ? `${MESSAGES.quizRevealMatched} ` : "") + revealText;
+  quizNextButton.textContent = isLastQuizQuestion() ? MESSAGES.quizFinishButtonLabel : MESSAGES.quizNextButtonLabel;
+  quizRevealEl.hidden = false;
+}
+
 function revealQuizAnswer() {
   quizPhase = "revealed";
-  const question = QUIZ_QUESTIONS[quizQuestionIndex];
+  const question = currentQuizQuestion();
   const level = VAPOR_LEVELS[question.vaporLevelIndex];
   const measuredHeight = Math.round((currentHeight / MOUNTAIN_MAX_HEIGHT) * HEIGHT_DISPLAY_SCALE);
   // 選択肢は「◯◯くらい」という近似値なので、実測値に最も近い選択肢を「実際」とする。
@@ -908,34 +1192,78 @@ function revealQuizAnswer() {
   const actualValue = QUIZ_CHOICES[nearestChoiceIndex];
   const guessValue = QUIZ_CHOICES[quizSelectedChoice];
   const matched = quizSelectedChoice === nearestChoiceIndex;
-  quizResults.push({ level, guessValue, actualValue, matched });
+  pushQuizResultAndFinish(
+    { type: "A", level, guessValue, actualValue, matched },
+    MESSAGES.quizRevealText(actualValue, level.value.toFixed(1)),
+    quizChoiceLabel(quizSelectedChoice)
+  );
+}
 
-  quizYourGuessEl.textContent = MESSAGES.quizYourGuess(quizChoiceLabel(quizSelectedChoice));
-  quizRevealTextEl.textContent =
-    (matched ? `${MESSAGES.quizRevealMatched} ` : "") + MESSAGES.quizRevealText(actualValue, level.value.toFixed(1));
-  quizNextButton.textContent =
-    quizQuestionIndex === QUIZ_QUESTIONS.length - 1 ? MESSAGES.quizFinishButtonLabel : MESSAGES.quizNextButtonLabel;
-  quizRevealEl.hidden = false;
+function revealQuizAnswerB() {
+  quizPhase = "revealed";
+  const q = currentQuizQuestion();
+  const lv = VAPOR_LEVELS[q.vaporLevelIndex];
+  const canForm = lastCloudVisible; // 自動再生の結果として雲が出たか（ハードコードしない）
+  const guessCanForm = quizSelectedChoice === 0;
+  const matched = guessCanForm === canForm;
+  pushQuizResultAndFinish(
+    { type: "B", label: lv.label, value: lv.value, targetHeight: q.targetHeight, guess: guessCanForm, actual: canForm, matched },
+    MESSAGES.quizRevealTextB(lv.label, lv.value.toFixed(1), q.targetHeight, canForm),
+    guessCanForm ? MESSAGES.quizChoiceCanForm : MESSAGES.quizChoiceCannotForm
+  );
+}
+
+function revealQuizAnswerC(aOnset, bOnset) {
+  quizPhase = "revealed";
+  const q = currentQuizQuestion();
+  const a = VAPOR_LEVELS[q.aIndex];
+  const b = VAPOR_LEVELS[q.bIndex];
+  // 自動再生で実際に雲になった高さ同士を比較（ハードコードしない）
+  const winnerIsA = aOnset < bOnset;
+  const actual = winnerIsA ? "A" : "B";
+  const winnerLevel = winnerIsA ? a : b;
+  const guess = quizSelectedChoice === 0 ? "A" : "B";
+  const matched = guess === actual;
+  pushQuizResultAndFinish(
+    {
+      type: "C",
+      aLabel: a.label,
+      aValue: a.value,
+      bLabel: b.label,
+      bValue: b.value,
+      guess,
+      actual,
+      matched,
+    },
+    MESSAGES.quizRevealTextC(actual, winnerLevel.label),
+    guess
+  );
 }
 
 // 問題ごとに、水蒸気の量を強制的に切り替え、距離レバーを遠い(高さ0)に戻して
 // から出題する。既に雲が出ている状態から始まると「動かさなくても答え合わせが
 // 出る」ことになってしまうため、必ず高さ0から始める
 function startQuizQuestion() {
-  const question = QUIZ_QUESTIONS[quizQuestionIndex];
-  setVaporLevel(question.vaporLevelIndex, true);
+  cancelQuizAnim();
+  resetQuizCmpLines();
+  const q = currentQuizQuestion();
+  // タイプC は最初に A 側の段階をゲージに出しておく（予想の手がかり）
+  const initialLevelIndex = q.type === "C" ? q.aIndex : q.vaporLevelIndex;
+  setVaporLevel(initialLevelIndex, true);
   currentDistance = MOUNTAIN_INFLUENCE_RADIUS;
   currentHeight = 0;
   positionAirMass(currentDistance);
   updateGauges(currentHeight);
   quizPhase = "choosing";
   quizSelectedChoice = null;
+  quizVerifyButton.hidden = true;
   setDistanceLeverLocked(true);
   renderQuizQuestion();
 }
 
 function startQuiz() {
   quizActive = true;
+  quizQuestions = buildQuizQuestions();
   quizQuestionIndex = 0;
   quizResults = [];
   quizStartButton.hidden = true;
@@ -951,7 +1279,7 @@ function startQuiz() {
 }
 
 function goToNextQuizStep() {
-  if (quizQuestionIndex < QUIZ_QUESTIONS.length - 1) {
+  if (quizQuestionIndex < quizQuestions.length - 1) {
     quizQuestionIndex += 1;
     startQuizQuestion();
   } else {
@@ -959,24 +1287,46 @@ function goToNextQuizStep() {
   }
 }
 
-// 4段階で答えが違ったことに気づけるよう、水蒸気の量が少ない順に並べ替えて見せる。
-// 予想と実際を1行ずつ並べた表にすることで、正解数を明示せずに「どこがずれたか」
-// 「量が増えるほど雲が低い高さでできる」が自分で読み取れる（design.md参照）
+// まとめ表: 予想と実際を出題順に並べる。「正解/不正解」は出さず、見比べれば
+// どこがずれたか分かる形にする（design.md参照）。タイプが混在するため、1列目の
+// 問題は書式をタイプごとに変え、狭い画面では短縮形に差し替える（q-full/q-short）
+function quizSummaryRow(r) {
+  let full;
+  let short;
+  let guess;
+  let actual;
+  if (r.type === "A") {
+    full = MESSAGES.quizSummaryAirCell(r.level.label, r.level.value.toFixed(1));
+    short = full;
+    guess = r.guessValue;
+    actual = r.actualValue;
+  } else if (r.type === "B") {
+    full = MESSAGES.quizSummaryCellB(r.label, r.value.toFixed(1), r.targetHeight);
+    short = MESSAGES.quizSummaryCellBShort(r.label, r.targetHeight);
+    guess = r.guess ? MESSAGES.quizChoiceCanForm : MESSAGES.quizChoiceCannotForm;
+    actual = r.actual ? MESSAGES.quizChoiceCanForm : MESSAGES.quizChoiceCannotForm;
+  } else {
+    full = MESSAGES.quizSummaryCellC(r.aLabel, r.aValue.toFixed(1), r.bLabel, r.bValue.toFixed(1));
+    short = MESSAGES.quizSummaryCellCShort(r.aLabel, r.bLabel);
+    guess = r.guess;
+    actual = r.actual;
+  }
+  return (
+    `<tr><th scope="row"><span class="q-full">${full}</span><span class="q-short">${short}</span></th>` +
+    `<td>${guess}</td><td>${actual}</td></tr>`
+  );
+}
+
 function showQuizSummary() {
+  cancelQuizAnim();
+  resetQuizCmpLines();
   quizPanel.hidden = true;
   quizSummaryEl.hidden = false;
   quizSummaryTitleEl.textContent = MESSAGES.quizSummaryTitle;
-  const sorted = [...quizResults].sort((a, b) => a.level.value - b.level.value);
-  const bodyRows = sorted
-    .map(
-      (r) =>
-        `<tr><th scope="row">${MESSAGES.quizSummaryAirCell(r.level.label, r.level.value.toFixed(1))}</th>` +
-        `<td>${r.guessValue}</td><td>${r.actualValue}</td></tr>`
-    )
-    .join("");
+  const bodyRows = quizResults.map(quizSummaryRow).join("");
   quizSummaryTableWrap.innerHTML =
     `<table class="quiz-summary-table"><thead><tr>` +
-    `<th scope="col">${MESSAGES.quizSummaryHeadAir}</th>` +
+    `<th scope="col">${MESSAGES.quizSummaryHeadQuestion}</th>` +
     `<th scope="col">${MESSAGES.quizSummaryHeadGuess}</th>` +
     `<th scope="col">${MESSAGES.quizSummaryHeadActual}</th>` +
     `</tr></thead><tbody>${bodyRows}</tbody></table>`;
@@ -985,6 +1335,9 @@ function showQuizSummary() {
 }
 
 function exitQuiz() {
+  cancelQuizAnim();
+  resetQuizCmpLines();
+  quizVerifyButton.hidden = true;
   quizActive = false;
   quizStartButton.hidden = false;
   quizPanel.hidden = true;
