@@ -11,6 +11,8 @@ const vaporCapLabel = document.getElementById("vapor-cap-label");
 const excessValueEl = document.getElementById("excess-value");
 const excessReadoutEl = document.getElementById("excess-readout");
 const cloudFlashEl = document.getElementById("cloud-flash");
+const cloudFlashMainEl = document.getElementById("cloud-flash-main");
+const cloudFlashSubEl = document.getElementById("cloud-flash-sub");
 const legendEl = document.getElementById("legend");
 const distanceLever = document.getElementById("distance-lever");
 const distanceLeverFill = document.getElementById("distance-lever-fill");
@@ -101,7 +103,7 @@ const MESSAGES = {
   // 凡例は増やさず、既存のゲージの説明に斜線の一句を足すだけにする（凡例の長さは
   // 画面が自分で説明できていない量の裏返しなので、行数を増やさない）
   legendVaporGauge:
-    "マップ内の水蒸気ゲージ: 塗り＝水蒸気の量（高さを変えても変わりません。下のレバーで切り替えられます）、点線＝飽和水蒸気量（気温が下がると降りてきます）。点線より上の斜線は、その気温ではもう入らない量です。点線が塗りより下に来た分＝抱えきれずに水滴になった量を、白抜き＋輪郭線で示します。",
+    "マップ内の水蒸気ゲージ: 塗り＝水蒸気の量（高さを変えても変わりません。下のレバーで切り替えられます）、点線＝飽和水蒸気量（気温が下がると降りてきます）。点線より上の斜線は、その気温ではもう入らない量です。点線が塗りより下に来た分＝上限をこえて水滴になった量を、白抜き＋輪郭線で示します。",
   // 「○が白く曇る＝雲ができる様子」という凡例は2026-08-27に削除した。○自体を
   // もくもくした雲の形に変化させる表現に変えたことで、注釈なしで雲だと伝わる
   // ようになったため（design.md参照）
@@ -117,20 +119,26 @@ const MESSAGES = {
   logCompress: "→ まわりの気圧が上がり、空気が縮みました",
   logTempDrop: (from, to) => `→ 気温が${from}℃から${to}℃に下がりました`,
   logTempRise: (from, to) => `→ 気温が${from}℃から${to}℃に上がりました`,
-  logCapacityDrop: (from, to) => `→ 抱えられる水蒸気の量が${from}g/m³から${to}g/m³に減りました`,
-  logCapacityRise: (from, to) => `→ 抱えられる水蒸気の量が${from}g/m³から${to}g/m³に増えました`,
+  // ゲージの「上限」表示と直接つながる言い方に統一する（「抱える」の比喩を
+  // アプリ全体で多用すると説明文っぽくなるため。design.md「数値の位置づけ」周辺）
+  logCapacityDrop: (from, to) => `→ 水蒸気の上限が${from}g/m³から${to}g/m³に下がりました`,
+  logCapacityRise: (from, to) => `→ 水蒸気の上限が${from}g/m³から${to}g/m³に上がりました`,
   // コップ撤去にともない、あふれ量の増減も「雲」の言葉だけで語る（同じ事象を
   // 2つの表現で2回言わない。design.md「端の小道具：汗をかくコップ」参照）。
   // 「あふれ」だと水蒸気のまま溢れるように読めるため、表示は「水滴になった量」に
   // 統一（理科的には抱えきれない水蒸気は水滴になる。内部の変数名 excess は据え置き）
   logExcessMore: "→ 水滴になった量が増えました",
   logExcessLess: "→ 水滴になった量が減りました",
-  logExcessStillRoom: "→ まだ水蒸気を抱えられるので、水滴はできていません",
+  logExcessStillRoom: "→ まだ上限に余裕があるので、水滴はできていません",
   // 雲ができた瞬間にマップ上へ数秒だけ出す一行（変化ログは読まれないことがあるため、
-  // 因果の要点をその場・その瞬間に出す。詳細は従来どおり変化ログが補う）
-  cloudFlash: "抱えきれなくなった！",
-  logCloudStart: "→ 水蒸気を抱えきれなくなり、雲ができました",
-  logCloudEnd: "→ 水蒸気の量が抱えられる量を下回り、雲が消えました",
+  // 因果の要点をその場・その瞬間に出す。詳細は従来どおり変化ログが補う）。
+  // 「ここで雲ができた！」はユーザーが今見た現象をそのまま言葉にするだけで
+  // 説明臭さがない。cloudFlashSub は演出と説明を分けるための小さな補足
+  // （狭い画面で収まらなければ非表示。#cloud-flash-sub の CSS 参照）
+  cloudFlash: "ここで雲ができた！",
+  cloudFlashSub: "水蒸気の一部が水滴に変わった",
+  logCloudStart: "→ 水蒸気の量が上限をこえて、雲ができました",
+  logCloudEnd: "→ 水蒸気の量が上限を下回り、雲が消えました",
   // 水蒸気の量スライダーを切り替えたときの変化ログ。高さは変えていないので、
   // 気温・抱えられる量（飽和水蒸気量）は変化しない。変わるのは水蒸気の量自体と、
   // それに応じたあふれ量だけ
@@ -161,12 +169,13 @@ const MESSAGES = {
   quizStartButtonLabel: "お題に挑戦",
   quizExitButtonLabel: "自由に触る",
   quizProgress: (current, total) => `お題 ${current} / ${total}`,
-  // 問題文は条件（水蒸気の量）と問う対象（高さ）を明示する。「この空気」だと
-  // 何を指すか画面から読めず、「どのくらい上げると」だと横操作の距離レバーと
-  // 食い違い、選択肢の数字が何かも分からないため（design.md「お題モード」参照）。
-  // タイトル下のサブタイトルはキャッチコピーとして別文言のまま
-  quizQuestion: (heldVapor) =>
-    `水蒸気を${heldVapor} g/m³ ふくんだ空気です。\n高さがどのくらいになると、雲ができるだろう？`,
+  // 問題文は「言葉で直感 → 数字で確認」の順にする（design.md「数値の位置づけ」）。
+  // 初見のユーザーは 9.4 が多いのか少ないのか判断できず当てずっぽうになっていた
+  // ため、最初に考えるのが「水蒸気が多い/少ない空気」という条件になるよう、
+  // 段階のラベルを主・数値をかっこ書きの補助にする。ラベルはスライダー側の
+  // 表記とそろえる。タイトル下のサブタイトルはキャッチコピーとして別文言のまま
+  quizQuestion: (label, heldVapor) =>
+    `水蒸気が「${label}」空気です。（${heldVapor} g/m³）\n高さがどのくらいになると、雲ができるだろう？`,
   quizChoiceLabel: (index, value) => `${["①", "②", "③", "④"][index]}${value}くらい`,
   quizCheckingHint: "距離レバーを動かして、実際に確かめてみよう",
   quizYourGuess: (label) => `あなたの予想: ${label}`,
@@ -174,7 +183,7 @@ const MESSAGES = {
   // actual は選択肢に揃えた値（実測が9でも選択肢の10で見せる。10と9の差は
   // 学習上意味がなく、選択肢と解説の食い違いによる混乱の方が問題）
   quizRevealText: (actual, heldVapor) =>
-    `実際は${actual}くらいでした。この空気は水蒸気を${heldVapor}g/m³ふくんでいるので、${actual}まで上げると抱えきれなくなります。`,
+    `実際は${actual}くらいでした。この空気は水蒸気を${heldVapor}g/m³ふくんでいるので、${actual}まで上げると水蒸気の量が上限をこえます。`,
   quizNextButtonLabel: "次の問題へ",
   quizFinishButtonLabel: "まとめを見る",
   quizSummaryTitle: "4問終わりました",
@@ -190,7 +199,7 @@ const MESSAGES = {
   // 学校の授業・テストに戻ったときに使えるよう、まとめの最後に正式用語へ橋渡しする。
   // 初見では「上限」で通し、最後にここで名前を渡す（design.md「お題モード」参照）
   quizSummaryTerm:
-    "アプリで見てきた「抱えられる上限」を、理科では飽和水蒸気量といいます。テストや授業でこの言葉が出てきたら、上限の点線を思い出そう。",
+    "アプリで見てきた「上限」を、理科では飽和水蒸気量といいます。テストや授業でこの言葉が出てきたら、上限の点線を思い出そう。",
   quizRestartButtonLabel: "もう一度挑戦する",
 };
 
@@ -851,7 +860,7 @@ function quizChoiceLabel(index) {
 function renderQuizQuestion() {
   quizProgressEl.textContent = MESSAGES.quizProgress(quizQuestionIndex + 1, QUIZ_QUESTIONS.length);
   const questionLevel = VAPOR_LEVELS[QUIZ_QUESTIONS[quizQuestionIndex].vaporLevelIndex];
-  quizQuestionEl.textContent = MESSAGES.quizQuestion(questionLevel.value.toFixed(1));
+  quizQuestionEl.textContent = MESSAGES.quizQuestion(questionLevel.label, questionLevel.value.toFixed(1));
   quizChoicesEl.innerHTML = QUIZ_CHOICES.map((value, index) => {
     const selected = quizSelectedChoice === index;
     const disabled = quizPhase !== "choosing";
@@ -1017,7 +1026,8 @@ distanceLeverCaptionEl.textContent = MESSAGES.leverCaptionDistance;
 distanceLever.setAttribute("aria-label", MESSAGES.leverAriaDistance);
 vaporLevelCaptionEl.textContent = MESSAGES.leverCaptionVapor;
 vaporLevelLever.setAttribute("aria-label", MESSAGES.leverAriaVapor);
-cloudFlashEl.textContent = MESSAGES.cloudFlash;
+cloudFlashMainEl.textContent = MESSAGES.cloudFlash;
+cloudFlashSubEl.textContent = MESSAGES.cloudFlashSub;
 
 positionAirMass(currentDistance);
 renderVaporLevelControl();

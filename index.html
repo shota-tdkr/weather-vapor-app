@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>雲のたね</title>
   <!-- ?v=N はキャッシュ対策。style.css/script.js を編集したら両方の番号を1つ上げる -->
-  <link rel="stylesheet" href="./style.css?v=42">
+  <link rel="stylesheet" href="./style.css?v=43">
 </head>
 <body>
   <h1 class="app-title">雲のたね</h1>
@@ -148,8 +148,10 @@
            読まれない、という2つの指摘に1つの要素で応える（design.md参照）。
            位置は固定: 情報パネル(y≤60)の下、山の頂点(y=120)より上、ゲージ(x≥284)の左、
            という常に空いている帯。x=96中心なら山頂まで上げたときの雲(x≥185)とも
-           重ならない。opacityはJSが出し入れするのでCSSに値を書かない -->
-      <text id="cloud-flash" class="cloud-flash" x="96" y="80" opacity="0"></text>
+           重ならない。1行目＝見た現象そのまま、2行目＝小さな補足（演出と説明を分ける。
+           狭い画面で読めない/はみ出す場合はCSSで2行目を隠す）。opacity・文言はJSが
+           入れるのでCSSに書かない -->
+      <text id="cloud-flash" class="cloud-flash" x="96" y="80" opacity="0"><tspan id="cloud-flash-main" x="96"></tspan><tspan id="cloud-flash-sub" class="cloud-flash-sub" x="96" dy="15"></tspan></text>
     </svg>
 
     <!-- 距離レバー: マップ外・横向き・全幅。左＝遠い、右＝山に近い、で指の動きと
@@ -204,6 +206,6 @@
     </div>
   </div>
 
-  <script src="./script.js?v=42"></script>
+  <script src="./script.js?v=43"></script>
 </body>
 </html>

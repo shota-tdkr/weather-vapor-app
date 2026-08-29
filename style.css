@@ -452,6 +452,15 @@ body {
   transition: opacity 0.25s ease;
 }
 
+/* 2行目＝小さな補足（演出と説明を分ける）。1行目より一段弱い字。
+   狭い画面ではマップの縮小で読めない大きさになるため、下の media query で隠す
+   （その場合は1行目だけ＝design.md「数値の位置づけ」の指示どおり） */
+.cloud-flash-sub {
+  font-size: 11px;
+  font-weight: normal;
+  fill-opacity: 0.75;
+}
+
 .lift-arrow {
   fill: #eaeaea;
   stroke: #1c2541;
@@ -678,6 +687,12 @@ body {
 
   .app-layout {
     gap: 0.4rem;
+  }
+
+  /* マップが縮小されて2行目の補足が読めない大きさになるので、狭い画面では
+     1行目（見た現象そのまま）だけにする */
+  .cloud-flash-sub {
+    display: none;
   }
 
   /* お題モード中のスマホ限定の縦詰め（design.md「お題モード」／PC表示は変えない）。
