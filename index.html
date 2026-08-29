@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>天気のたね</title>
   <!-- ?v=N はキャッシュ対策。style.css/script.js を編集したら両方の番号を1つ上げる -->
-  <link rel="stylesheet" href="./style.css?v=39">
+  <link rel="stylesheet" href="./style.css?v=40">
 </head>
 <body>
   <h1 class="app-title">天気のたね</h1>
@@ -101,7 +101,7 @@
       <g class="info-panel" transform="translate(8,8)">
         <rect class="panel-plate" x="0" y="0" width="180" height="52" rx="6" />
         <text class="readout-sub" x="10" y="15">高さ <tspan id="height-value">0</tspan> / 100</text>
-        <text class="readout-note" x="10" y="27">実際の高さ（m）ではありません</text>
+        <text class="readout-note" x="10" y="27">※実際の高さ（m）ではありません</text>
         <text class="readout-sub" x="10" y="43">気温 <tspan id="temp-value">15</tspan>℃</text>
         <rect class="temp-strip-bg" x="96" y="34" width="76" height="10" rx="5" />
         <rect id="temp-strip-fill" class="temp-strip-fill" x="96" y="34" width="0" height="10" rx="5" />
@@ -112,13 +112,16 @@
            （気温が下がると降りてくる）。点線が塗りより下に来た分を白抜き＋輪郭線で
            示す（○が白く曇る雲の表現と同じ視覚言語。design.md参照） -->
       <g class="vapor-panel" transform="translate(296,20)">
-        <rect class="panel-plate" x="-10" y="-20" width="108" height="270" rx="6" />
-        <text class="gauge-label" x="-4" y="-6">水蒸気の量</text>
-        <!-- 現在の水蒸気の量の数値。ゲージの塗り（＝今の量）のすぐ上、見出しの右端に
-             右寄せで置き、視線移動なく読めるようにする（お題モードで予想の根拠になる）。
-             plateは見出し＋数値が1行に収まるよう幅を96→108に広げた -->
-        <text class="held-vapor-readout" x="96" y="-6"><tspan id="held-vapor-value">9.4</tspan> g/m³</text>
-        <rect class="gauge-track" x="0" y="0" width="52" height="210" />
+        <rect class="panel-plate" x="-12" y="-20" width="112" height="270" rx="6" />
+        <!-- 見出し「水蒸気の量」の下に、段階のラベル＋数値をまとめて出す
+             （例「やや多い（9.4 g/m³）」）。スライダー側にラベル・ここに数値、と
+             分離していたため「やや多い＝9.4」の対応が読めなかったのを解消。
+             お題モードで予想の根拠になる。JSがrenderVaporLevelControlで更新する。
+             この2行分の縦スペースを空けるため、下のトラックの開始を y=14 に下げている
+             （script.jsのVAPOR_TRACK_TOP=14と一致） -->
+        <text class="gauge-label" x="-6" y="-8">水蒸気の量</text>
+        <text class="held-vapor-readout" id="held-vapor-value" x="-8" y="6"></text>
+        <rect class="gauge-track" x="0" y="14" width="52" height="196" />
         <!-- 「もう入らない領域」= 点線（上限）より上。気温が下がると点線が降りてきて
              この斜線が上から広がる＝入る場所が減っていくことが、数字を読まなくても
              分かる。塗り(#vapor-fill)より先に描き、下に敷く（塗りと重なる部分は
@@ -190,6 +193,6 @@
     </div>
   </div>
 
-  <script src="./script.js?v=39"></script>
+  <script src="./script.js?v=40"></script>
 </body>
 </html>

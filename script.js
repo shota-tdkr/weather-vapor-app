@@ -94,6 +94,8 @@ const MESSAGES = {
   legendDistanceLever: "マップ下の横向きのレバー: 右へ動かすほど山に近づき、高さも自動で上がります。",
   legendVaporLevel:
     "マップ下のもう1本のレバー: 水蒸気の量を4段階（少ない/やや少ない/やや多い/多い）で切り替えます。水蒸気の量が多いほど、低い高さで雲ができます。",
+  // ゲージ横の「ラベル＋数値」表示のフォーマット（例: やや多い（9.4 g/m³））
+  gaugeHeldVapor: (label, value) => `${label}（${value} g/m³）`,
   // 凡例は増やさず、既存のゲージの説明に斜線の一句を足すだけにする（凡例の長さは
   // 画面が自分で説明できていない量の裏返しなので、行数を増やさない）
   legendVaporGauge:
@@ -133,9 +135,9 @@ const MESSAGES = {
   // （消したわけではなく順序を「目的→背景の理科」に変えた。design.md「チュートリアル」参照）
   tutorialStepLabel: (current, total) => `${current} / ${total}`,
   tutorialStep1:
-    "このアプリは、空気を山で持ち上げて『雲ができる高さ』を予想して当てます。「お題に挑戦」から、予想 → 動かして確かめる、を順番にできます。",
+    "空気を山で持ち上げると、雲ができます。\n『お題に挑戦』で、雲ができる高さを予想して確かめてみよう。",
   tutorialStep2:
-    "冷たいコップの外側に水のつぶがつくのは、空気が冷やされて水分を抱えきれなくなるからだよ。同じことが空の上でも起きて、抱えきれない水分がつぶ＝雲になる。",
+    "冷たいコップの外側に水のつぶがつくのは、まわりの空気が冷やされて、水蒸気を抱えきれなくなるから。\n同じことが空の上でも起きていて、抱えきれなかった分が水のつぶ＝雲になるよ。",
   tutorialStep3: "距離レバーを動かして、空気の塊（○）を山（▲）に近づけてみよう",
   tutorialStep4:
     "レバーを動かすと、画面の下の「変化ログ」に、なぜそうなったかが順番に表示されるよ。スクロールして見てみよう。",
@@ -237,9 +239,11 @@ const TEMP_MIN = -10;
 const TEMP_MAX = 20;
 const VAPOR_MAX = 16;
 
-// 水蒸気ゲージ（マップ内、<g transform>でオフセットするローカル座標系）のトラック寸法
-const VAPOR_TRACK_TOP = 0;
-const VAPOR_TRACK_HEIGHT = 210;
+// 水蒸気ゲージ（マップ内、<g transform>でオフセットするローカル座標系）のトラック寸法。
+// 上に「水蒸気の量」見出し＋段階のラベル＋数値の2行を置くため、トラックの開始を
+// 0→14 に下げた（下端は 14+196=210 で従来と同じ。index.htmlのrectと一致させること）
+const VAPOR_TRACK_TOP = 14;
+const VAPOR_TRACK_HEIGHT = 196;
 
 // 気温の横帯（マップ左上の情報パネル内）の幅
 const TEMP_STRIP_WIDTH = 76;
@@ -380,10 +384,8 @@ function updateGauges(height) {
   tempStripFill.setAttribute("width", tempRatio * TEMP_STRIP_WIDTH);
 
   // 水蒸気ゲージ（反転済み）: 塗り＝水蒸気の量（currentHeldVapor。高さを変えても
-  // 動かないが、水蒸気の量スライダーで段階的に変えられる）。ゲージ見出しの横に
-  // 現在の量の数値も出す（お題モードで予想の根拠になる。画面下のスライダー読み上げは
-  // お題中グレーアウトして薄いため。design.md「お題モード」参照）
-  heldVaporValueEl.textContent = currentHeldVapor.toFixed(1);
+  // 動かないが、水蒸気の量スライダーで段階的に変えられる）。ゲージ横の
+  // ラベル＋数値表示（#held-vapor-value）は renderVaporLevelControl() が更新する
   const heldTopY = verticalFillTopY(currentHeldVapor / VAPOR_MAX, VAPOR_TRACK_TOP, VAPOR_TRACK_HEIGHT);
   vaporFill.setAttribute("y", heldTopY);
   vaporFill.setAttribute("height", VAPOR_TRACK_TOP + VAPOR_TRACK_HEIGHT - heldTopY);
@@ -728,9 +730,12 @@ function renderVaporLevelControl() {
   vaporLevelFill.setAttribute("width", ratio * LEVER_TRACK_WIDTH);
   vaporLevelHandle.setAttribute("cx", x);
   const level = VAPOR_LEVELS[vaporLevelIndex];
-  // 数値はマップ内のゲージ横（#held-vapor-value）に一本化したので、ここは段階の
-  // ラベルだけ（同じ数字を2回描かない。index.htmlのコメント参照）
+  // スライダー直下の読み上げは段階のラベルだけ（数値はゲージ横に一本化＝
+  // 同じ数字を2回描かない。案1。index.htmlのコメント参照）
   vaporLevelLabelEl.textContent = level.label;
+  // マップ内のゲージ横は「ラベル＋数値」でまとめて出す。「やや多い＝9.4」の
+  // 対応がここで読み取れる（お題モードで予想の根拠になる）
+  heldVaporValueEl.textContent = MESSAGES.gaugeHeldVapor(level.label, level.value.toFixed(1));
 }
 
 // svgX（横向きスライダーのローカルx座標）から、最も近い段階のインデックスを求める。

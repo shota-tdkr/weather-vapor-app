@@ -303,13 +303,12 @@ body {
   font-weight: bold;
 }
 
-/* ゲージ見出しの横に出す「今の水蒸気の量」の数値。塗り（＝今の量）のすぐ上、
-   plate右端に右寄せで置く（見出し「水蒸気の量」と重ならないように） */
+/* ゲージ見出し「水蒸気の量」の下の行。段階のラベル＋数値（例「やや多い（9.4 g/m³）」）。
+   最長「やや少ない（11.6 g/m³）」がplate内（x=-8 起点、幅112）に収まるよう8px。左寄せ */
 .held-vapor-readout {
-  font-size: 10px;
+  font-size: 8px;
   fill: #1c2541;
   font-weight: bold;
-  text-anchor: end;
 }
 
 .temp-strip-bg {
@@ -585,6 +584,9 @@ body {
 
 #tutorial-text {
   margin: 0;
+  /* step1/step2は「結論」と「補足」の2文。間の \n を改行として見せる
+     （狭い吹き出しなので各文はさらに折り返してよい） */
+  white-space: pre-line;
 }
 
 .tutorial-actions {
