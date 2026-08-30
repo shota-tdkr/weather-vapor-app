@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>雲のたね</title>
   <!-- ?v=N はキャッシュ対策。style.css/script.js を編集したら両方の番号を1つ上げる -->
-  <link rel="stylesheet" href="./style.css?v=46">
+  <link rel="stylesheet" href="./style.css?v=47">
 </head>
 <body>
   <h1 class="app-title">雲のたね</h1>
@@ -157,6 +157,15 @@
            入れるのでCSSに書かない -->
       <text id="cloud-flash" class="cloud-flash" x="96" y="80" opacity="0"><tspan id="cloud-flash-main" x="96"></tspan><tspan id="cloud-flash-sub" class="cloud-flash-sub" x="96" dy="15"></tspan></text>
 
+      <!-- お題タイプA専用の「高さの目安」。選択肢（10/25/50/75くらい）が○の通り道の
+           どこに当たるかを、小さな目印＋数字で示す（実ユーザー「どこらへんが10なのか
+           書いてほしい」）。中身（目印の circle と数字の text）はJSが QUIZ_CHOICES から
+           生成し、xForDistance/terrainYで○の実際の通り道の上に置く。opacityの出し入れも
+           JS（タイプAのときだけ opacity 1）。色は増やさない（#eaeaea/#1c2541）。数字は
+           paint-orderの薄い縁取りで空でも山の上でも読める。タイプCの比較線（長い水平の
+           破線）とは形（小さなリング）と位置（斜めの通り道の上）で区別できる -->
+      <g id="quiz-height-guide" opacity="0"></g>
+
       <!-- お題タイプC（どちらが先に雲になる?）専用。A・Bそれぞれが雲になった高さに
            水平の破線を残す。線が下にある方＝低い高さで雲になった方＝水蒸気の量が多い方
            （学習目標⑤を数字なしで伝える）。色は増やさない（濃紺のみ）。A・Bの区別は
@@ -226,6 +235,6 @@
     </div>
   </div>
 
-  <script src="./script.js?v=46"></script>
+  <script src="./script.js?v=47"></script>
 </body>
 </html>

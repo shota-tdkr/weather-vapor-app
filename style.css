@@ -429,6 +429,30 @@ body {
   pointer-events: none;
 }
 
+/* お題タイプAの「高さの目安」（選択肢 10/25/50/75 が○の通り道のどこか）。
+   色は増やさない（#eaeaea/#1c2541）。目印は薄色の中身＋濃紺の輪郭で、空でも
+   山（濃紺）の上でも見える。数字は paint-order の薄い縁取りで同じく読める。
+   タイプCの比較線（長い水平の破線）とは形（小さなリング）で区別 */
+#quiz-height-guide {
+  transition: opacity 0.25s ease;
+  pointer-events: none;
+}
+
+.quiz-height-mark {
+  fill: #eaeaea;
+  stroke: #1c2541;
+  stroke-width: 1.5;
+}
+
+.quiz-height-num {
+  fill: #1c2541;
+  stroke: #eaeaea;
+  stroke-width: 2.5;
+  paint-order: stroke;
+  font-size: 9px;
+  font-weight: bold;
+}
+
 /* 空の背景色。○の白いfill（雲）が#eaeaea背景だとほぼ見分けられなかったため追加
    （CLAUDE.mdの「色は4色まで」に対する例外として、空の色を1色追加している） */
 .sky {
