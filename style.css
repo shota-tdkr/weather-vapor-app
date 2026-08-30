@@ -194,6 +194,21 @@ body {
   margin-top: 0.5rem;
 }
 
+/* hidden 属性を効かせる（.quiz-verify-button の display 指定が [hidden] の
+   display:none を上書きしてしまうため、明示的に打ち消す） */
+.quiz-verify-button[hidden] {
+  display: none;
+}
+
+/* 予想を選ぶ前は無効。選択済みの二択ボタン（濃紺の塗り）と区別できるよう、
+   枠線だけの淡い見た目にして「まだ押せない」ことを示す */
+.quiz-verify-button:disabled {
+  background: transparent;
+  color: #1c2541;
+  opacity: 0.4;
+  cursor: default;
+}
+
 .quiz-summary-title {
   margin: 0 0 0.5rem;
   font-weight: bold;

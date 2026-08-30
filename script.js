@@ -109,7 +109,7 @@ const MESSAGES = {
   // 凡例は増やさず、既存のゲージの説明に斜線の一句を足すだけにする（凡例の長さは
   // 画面が自分で説明できていない量の裏返しなので、行数を増やさない）
   legendVaporGauge:
-    "マップ内の水蒸気ゲージ: 塗り＝水蒸気の量（高さを変えても変わりません。下のレバーで切り替えられます）、点線＝飽和水蒸気量（気温が下がると降りてきます）。点線より上の斜線は、その気温ではもう入らない量です。点線が塗りより下に来た分＝上限をこえて水滴になった量を、白抜き＋輪郭線で示します。",
+    "マップ内の水蒸気ゲージ: 塗り＝水蒸気の量（高さを変えても変わりません。下のレバーで切り替えられます）、点線＝飽和水蒸気量（気温が下がると降りてきます）。点線より上の斜線は、その気温ではもう入らない量です。点線が塗りより下に来た分＝上限を超えて水滴になった量を、白抜き＋輪郭線で示します。",
   // 「○が白く曇る＝雲ができる様子」という凡例は2026-08-27に削除した。○自体を
   // もくもくした雲の形に変化させる表現に変えたことで、注釈なしで雲だと伝わる
   // ようになったため（design.md参照）
@@ -143,7 +143,10 @@ const MESSAGES = {
   // （狭い画面で収まらなければ非表示。#cloud-flash-sub の CSS 参照）
   cloudFlash: "ここで雲ができた！",
   cloudFlashSub: "水蒸気の一部が水滴に変わった",
-  logCloudStart: "→ 水蒸気の量が上限をこえて、雲ができました",
+  // 「上限をこえた水蒸気」がそのまま水蒸気で存在し続けるように読めるという指摘を受け、
+  // 「こえた分が水滴になる」と因果を明示する（Phase 1 の「あふれ」→「水滴になった量」
+  // と同じ整理）
+  logCloudStart: "→ 上限を超えた分が水滴になり、雲ができました",
   logCloudEnd: "→ 水蒸気の量が上限を下回り、雲が消えました",
   // 水蒸気の量スライダーを切り替えたときの変化ログ。高さは変えていないので、
   // 気温・抱えられる量（飽和水蒸気量）は変化しない。変わるのは水蒸気の量自体と、
@@ -177,21 +180,23 @@ const MESSAGES = {
   quizProgress: (current, total) => `お題 ${current} / ${total}`,
   // 問題文は「言葉で直感 → 数字で確認」の順にする（design.md「数値の位置づけ」）。
   // 初見のユーザーは 9.4 が多いのか少ないのか判断できず当てずっぽうになっていた
-  // ため、最初に考えるのが「水蒸気が多い/少ない空気」という条件になるよう、
-  // 段階のラベルを主・数値をかっこ書きの補助にする。ラベルはスライダー側の
-  // 表記とそろえる。タイトル下のサブタイトルはキャッチコピーとして別文言のまま
+  // ため、最初に考えるのが「水蒸気の量が多い/少ない空気」という条件になるよう、
+  // 段階のラベルを主・数値をかっこ書きの補助にする。「水蒸気の量が」を主語にして
+  // ゲージの見出し「水蒸気の量」と対応させる（「何がやや少ないのか分からない」への対応）。
+  // ラベルはスライダー側の表記とそろえる。サブタイトルはキャッチコピーとして別文言
   quizQuestion: (label, heldVapor) =>
-    `水蒸気が「${label}」空気です。（${heldVapor} g/m³）\n高さがどのくらいになると、雲ができるだろう？`,
+    `水蒸気の量が「${label}」空気です。（${heldVapor} g/m³）\n高さがどのくらいになると、雲ができるだろう？`,
   quizChoiceLabel: (index, value) => `${["①", "②", "③", "④"][index]}${value}くらい`,
   quizCheckingHint: "距離レバーを動かして、実際に確かめてみよう",
   // タイプB（この高さで雲はできる?）とタイプC（どちらが先に雲になる?）。個別値の
   // 暗記に頼らず「条件を変えたときに結果がどう変わるか」で答えられる問い方
-  // （docs/design.md「お題の形式」／docs/future.md 参照）。確かめる操作は自動再生に
-  // して、操作の精度で結果が変わる余地をなくす
+  // （docs/design.md「お題の形式」参照）。確かめる操作は自動再生にして、操作の
+  // 精度で結果が変わる余地をなくす。高さは「40 / 100」の形で相対値だと分かるように
+  // する（情報パネルの「高さ 40 / 100」と一貫。「40m」と誤読させない）
   quizQuestionB: (label, value, height) =>
-    `水蒸気が「${label}」空気（${value} g/m³）です。\n高さ${height}まで上げたら、雲はできる？`,
+    `水蒸気の量が「${label}」空気（${value} g/m³）です。\n高さ${height} / 100まで上げたら、雲はできる？`,
   quizQuestionC: (aLabel, aValue, bLabel, bValue) =>
-    `A: 「${aLabel}」(${aValue})　B: 「${bLabel}」(${bValue})\nどちらが低い高さで雲になる？`,
+    `A: 水蒸気の量が「${aLabel}」空気（${aValue} g/m³）\nB: 水蒸気の量が「${bLabel}」空気（${bValue} g/m³）\nどちらが低い高さで雲になる？`,
   quizChoiceCanForm: "できる",
   quizChoiceCannotForm: "まだできない",
   quizChoiceA: "A",
@@ -199,17 +204,25 @@ const MESSAGES = {
   quizVerifyButtonLabel: "確かめる",
   quizVerifyHint: "「確かめる」を押すと、空気の塊が自動で上がっていきます",
   quizYourGuess: (label) => `あなたの予想: ${label}`,
-  quizRevealMatched: "予想どおりでした！",
+  quizRevealMatched: "予想通りでした！",
   // actual は選択肢に揃えた値（実測が9でも選択肢の10で見せる。10と9の差は
   // 学習上意味がなく、選択肢と解説の食い違いによる混乱の方が問題）
   quizRevealText: (actual, heldVapor) =>
-    `実際は${actual}くらいでした。この空気は水蒸気を${heldVapor}g/m³ふくんでいるので、${actual}まで上げると水蒸気の量が上限をこえます。`,
-  quizRevealTextB: (label, value, height, canForm) =>
-    canForm
-      ? `高さ${height}で雲ができました。「${label}」空気（${value} g/m³）は、この高さで上限をこえます。`
-      : `高さ${height}ではまだ雲ができません。「${label}」空気（${value} g/m³）は、もっと上げないと上限をこえません。`,
+    `実際は${actual}くらいでした。この空気は水蒸気を${heldVapor}g/m³含んでいるので、${actual}まで上げると上限に達して、水滴ができ始めます。`,
+  // タイプBの解説は自動再生の実測で出し分ける（design.md「お題の形式」）:
+  //  ・目標より手前で雲ができた → 実際にできた高さを示す（onsetDisplayHeight）
+  //  ・目標まで雲ができなかった → その旨
+  quizRevealTextB: (label, value, targetHeight, canForm, onsetDisplayHeight) => {
+    if (!canForm) {
+      return `高さ${targetHeight} / 100ではまだ雲ができません。「${label}」空気（${value} g/m³）は、もっと上げないと上限に達しません。`;
+    }
+    if (onsetDisplayHeight !== null && onsetDisplayHeight < targetHeight - 2) {
+      return `高さ${onsetDisplayHeight}くらいで、すでに雲ができました。「${label}」空気（${value} g/m³）は、低い高さで上限に達します。`;
+    }
+    return `高さ${targetHeight} / 100で上限に達し、水滴ができ始めます。（「${label}」空気 ${value} g/m³）`;
+  },
   quizRevealTextC: (winner, winnerLabel) =>
-    `${winner}（水蒸気が「${winnerLabel}」空気）の方が、低い高さで雲になりました。水蒸気が多いほど、少し上げただけで上限をこえます。`,
+    `${winner}（水蒸気の量が「${winnerLabel}」空気）の方が、低い高さで雲になりました。水蒸気の量が多いほど、少し上がったところで上限に達します。`,
   quizNextButtonLabel: "次の問題へ",
   quizFinishButtonLabel: "まとめを見る",
   quizSummaryTitle: "4問終わりました",
@@ -226,7 +239,7 @@ const MESSAGES = {
   quizSummaryCellCShort: (aLabel, bLabel) => `「${aLabel}」⇔「${bLabel}」`,
   // タイプCが必ず1問入り、比較を直接体験する。A/Bの実際列に傾向が並ばなくなる代わり
   // （design.md「お題の形式」で了承済み）
-  quizSummaryConclusion: "水蒸気が多い空気ほど、低い高さで雲になりましたね。",
+  quizSummaryConclusion: "水蒸気の量が多い空気ほど、低い高さで雲になりましたね。",
   // 学校の授業・テストに戻ったときに使えるよう、まとめの最後に正式用語へ橋渡しする。
   // 初見では「上限」で通し、最後にここで名前を渡す（design.md「お題モード」参照）
   quizSummaryTerm:
@@ -981,11 +994,14 @@ function renderQuizQuestion() {
     })
     .join("");
 
-  // タイプA は距離レバーを手で動かして確かめる。タイプB・C は「確かめる」ボタンで
-  // 自動再生する（操作の精度で結果が変わる余地をなくすため。design.md参照）
-  const showVerify = quizPhase === "checking" && q.type !== "A";
+  // タイプA は距離レバーを手で動かして確かめる（「確かめる」ボタンは出さない）。
+  // タイプB・C は「確かめる」ボタンで自動再生する。予想を選ぶ前もボタンは出すが
+  // 無効表示にして「まだ押せない」ことを見た目で示す（選択済みの二択ボタン＝濃紺塗り
+  // とは別の淡い見た目にする。実ユーザーの「押せるように見える／色が同じ」への対応）
+  const isVerifyType = q.type === "B" || q.type === "C";
+  const showVerify = isVerifyType && quizPhase !== "revealed";
   quizVerifyButton.hidden = !showVerify;
-  quizVerifyButton.disabled = !showVerify;
+  quizVerifyButton.disabled = quizPhase !== "checking";
   if (showVerify) quizVerifyButton.textContent = MESSAGES.quizVerifyButtonLabel;
 
   quizHintEl.textContent =
@@ -1113,10 +1129,16 @@ function runQuizVerifyB() {
   quizHintEl.textContent = "";
   const targetInternal = (q.targetHeight / HEIGHT_DISPLAY_SCALE) * MOUNTAIN_MAX_HEIGHT;
   animateHeightTo(0, targetInternal, QUIZ_ANIM_B_MS, {
-    onDone: () => {
+    recordOnset: true,
+    onDone: (result) => {
       // 変化ログはアニメ終了時に1回だけ（毎フレーム呼ぶとログが溢れる）
       logHeightChange(0, targetInternal);
-      revealQuizAnswerB();
+      // 目標より手前で雲ができていたら、実際にできた表示高さを解説に使う
+      const onsetDisplayHeight =
+        result.onsetHeight !== null
+          ? Math.round((result.onsetHeight / MOUNTAIN_MAX_HEIGHT) * HEIGHT_DISPLAY_SCALE)
+          : null;
+      revealQuizAnswerB(onsetDisplayHeight);
     },
   });
 }
@@ -1199,7 +1221,7 @@ function revealQuizAnswer() {
   );
 }
 
-function revealQuizAnswerB() {
+function revealQuizAnswerB(onsetDisplayHeight) {
   quizPhase = "revealed";
   const q = currentQuizQuestion();
   const lv = VAPOR_LEVELS[q.vaporLevelIndex];
@@ -1208,7 +1230,7 @@ function revealQuizAnswerB() {
   const matched = guessCanForm === canForm;
   pushQuizResultAndFinish(
     { type: "B", label: lv.label, value: lv.value, targetHeight: q.targetHeight, guess: guessCanForm, actual: canForm, matched },
-    MESSAGES.quizRevealTextB(lv.label, lv.value.toFixed(1), q.targetHeight, canForm),
+    MESSAGES.quizRevealTextB(lv.label, lv.value.toFixed(1), q.targetHeight, canForm, onsetDisplayHeight),
     guessCanForm ? MESSAGES.quizChoiceCanForm : MESSAGES.quizChoiceCannotForm
   );
 }
@@ -1256,9 +1278,8 @@ function startQuizQuestion() {
   updateGauges(currentHeight);
   quizPhase = "choosing";
   quizSelectedChoice = null;
-  quizVerifyButton.hidden = true;
   setDistanceLeverLocked(true);
-  renderQuizQuestion();
+  renderQuizQuestion(); // 「確かめる」ボタンの表示・有効/無効はここで決まる（タイプA=非表示、B/C予想前=無効表示）
 }
 
 function startQuiz() {
