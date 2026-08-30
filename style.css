@@ -396,14 +396,37 @@ body {
 
 .quiz-cmp-line {
   stroke: #1c2541;
-  stroke-width: 2;
-  stroke-dasharray: 4 3;
 }
 
+/* A・Bの区別は色ではなく線の太さ・破線パターンでつける（色を増やさない。
+   「正解の色を変える」＝予想が外れると『間違い』の印象が強くなるので採らない）。
+   狭い画面でラベルが消えても、細い線＝A / 太い線＝B で見分けられる */
+.quiz-cmp-line--a {
+  stroke-width: 1.5;
+  stroke-dasharray: 3 3;
+}
+
+.quiz-cmp-line--b {
+  stroke-width: 3.5;
+  stroke-dasharray: 9 4;
+}
+
+/* ラベルは両方とも線の左端に置く（左右に分けると判別しにくい、という指摘）。
+   y は drawQuizCmpLine が線の高さ＋4 にして、線の左端に寄り添わせる */
 .quiz-cmp-label {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: bold;
   fill: #1c2541;
+}
+
+/* 自動再生中、いまA・Bどちらを上げているかを出す（先にAが上がることを
+   分かりやすくする。実ユーザーの指摘）。cloud-flash の下・山頂より上の空き帯 */
+.quiz-cmp-now {
+  font-size: 13px;
+  font-weight: bold;
+  fill: #1c2541;
+  text-anchor: middle;
+  pointer-events: none;
 }
 
 /* 空の背景色。○の白いfill（雲）が#eaeaea背景だとほぼ見分けられなかったため追加
@@ -745,12 +768,6 @@ body {
     display: none;
   }
 
-  /* タイプC の比較線: 狭い画面ではラベル(A/B)が小さすぎるので隠し、線だけ残す
-     （cloud-flash-sub と同じ判断。線の上下関係は残るので「どちらが低いか」は伝わる） */
-  .quiz-cmp-label {
-    display: none;
-  }
-
   /* まとめ表の1列目は短縮形に差し替える（タイプ混在で長くなるため） */
   .quiz-summary-table .q-full {
     display: none;
@@ -852,6 +869,13 @@ body {
 /* iPhone SE 相当（狭い方）。横一列を維持しつつ「壊れずに動く」ことを目標に
    さらに詰める（CLAUDE.md「スマホは壊れずに動く」） */
 @media (max-width: 360px) {
+  /* iPhone SE 相当ではラベルの実効サイズが小さくなりすぎるので隠し、線だけ残す
+     （細い線＝A / 太い線＝B のスタイル差で区別。再生中は #quiz-cmp-now が
+     「A/B を上げています」で補う）。375px 以上ではラベルを表示する */
+  .quiz-cmp-label {
+    display: none;
+  }
+
   .quiz-choices {
     gap: 0.25rem;
   }

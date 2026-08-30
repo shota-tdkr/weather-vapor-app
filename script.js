@@ -54,6 +54,7 @@ const quizCmpLineA = document.getElementById("quiz-cmp-line-a");
 const quizCmpLabelA = document.getElementById("quiz-cmp-label-a");
 const quizCmpLineB = document.getElementById("quiz-cmp-line-b");
 const quizCmpLabelB = document.getElementById("quiz-cmp-label-b");
+const quizCmpNowEl = document.getElementById("quiz-cmp-now");
 const quizRevealEl = document.getElementById("quiz-reveal");
 const quizYourGuessEl = document.getElementById("quiz-your-guess");
 const quizRevealTextEl = document.getElementById("quiz-reveal-text");
@@ -203,6 +204,9 @@ const MESSAGES = {
   quizChoiceB: "B",
   quizVerifyButtonLabel: "確かめる",
   quizVerifyHint: "「確かめる」を押すと、空気の塊が自動で上がっていきます",
+  // タイプCの自動再生中、いまどちらを上げているかを出す（先にAが上がることを
+  // 分かりやすくする。実ユーザーの「今どちらを再生中か分からない」への対応）
+  quizCmpNowPlaying: (which) => `${which} を上げています`,
   quizYourGuess: (label) => `あなたの予想: ${label}`,
   quizRevealMatched: "予想通りでした！",
   // actual は選択肢に揃えた値（実測が9でも選択肢の10で見せる。10と9の差は
@@ -243,7 +247,7 @@ const MESSAGES = {
   // 学校の授業・テストに戻ったときに使えるよう、まとめの最後に正式用語へ橋渡しする。
   // 初見では「上限」で通し、最後にここで名前を渡す（design.md「お題モード」参照）
   quizSummaryTerm:
-    "アプリで見てきた「上限」を、理科では飽和水蒸気量といいます。テストや授業でこの言葉が出てきたら、上限の点線を思い出そう。",
+    "アプリで見てきた「上限」を、理科では「飽和水蒸気量」といいます。テストや授業でこの言葉が出てきたら、上限の点線を思い出そう。",
   quizRestartButtonLabel: "もう一度挑戦する",
 };
 
@@ -1113,13 +1117,22 @@ function drawQuizCmpLine(lineEl, labelEl, internalHeight) {
   const y = quizCmpLineY(internalHeight);
   lineEl.setAttribute("y1", y);
   lineEl.setAttribute("y2", y);
-  labelEl.setAttribute("y", y - 4);
+  // ラベルは線の左端に寄り添わせる（+4 で線の高さにほぼ揃う）
+  labelEl.setAttribute("y", y + 4);
+}
+
+// タイプC の自動再生中、いまA・Bどちらを上げているかを表示（先にAが上がることを
+// 分かりやすくする）
+function showQuizCmpNow(which) {
+  quizCmpNowEl.textContent = MESSAGES.quizCmpNowPlaying(which);
+  quizCmpNowEl.setAttribute("opacity", "1");
 }
 
 function resetQuizCmpLines() {
   quizCmpLinesEl.setAttribute("opacity", "0");
   quizCmpLineB.setAttribute("opacity", "0");
   quizCmpLabelB.setAttribute("opacity", "0");
+  quizCmpNowEl.setAttribute("opacity", "0");
 }
 
 function runQuizVerifyB() {
@@ -1151,7 +1164,8 @@ function runQuizVerifyC() {
   resetQuizCmpLines();
   quizCmpLinesEl.setAttribute("opacity", "1");
 
-  // A を再生（1問目=aIndex側）
+  // A を再生（1問目=aIndex側）。「A を上げています」を先に出す
+  showQuizCmpNow("A");
   setVaporLevel(q.aIndex, true);
   currentHeight = 0;
   currentDistance = distanceForHeight(0);
@@ -1175,10 +1189,12 @@ function runQuizVerifyC() {
         currentDistance = distanceForHeight(0);
         setVaporLevel(q.bIndex, true); // これが updateGauges(0) を呼ぶ＝雲が消え lastCloudVisible=false
         positionAirMass(currentDistance);
+        showQuizCmpNow("B"); // 表示を「B を上げています」に切り替え
         animateHeightTo(0, QUIZ_ANIM_C_TOP, QUIZ_ANIM_C_MS, {
           recordOnset: true,
           onDone: (bResult) => {
             const bOnset = bResult.onsetHeight !== null ? bResult.onsetHeight : bResult.endHeight;
+            quizCmpNowEl.setAttribute("opacity", "0"); // 再生終了＝「○ を上げています」を消す
             quizCmpLineB.setAttribute("opacity", "1");
             quizCmpLabelB.setAttribute("opacity", "1");
             drawQuizCmpLine(quizCmpLineB, quizCmpLabelB, bOnset);

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>雲のたね</title>
   <!-- ?v=N はキャッシュ対策。style.css/script.js を編集したら両方の番号を1つ上げる -->
-  <link rel="stylesheet" href="./style.css?v=45">
+  <link rel="stylesheet" href="./style.css?v=46">
 </head>
 <body>
   <h1 class="app-title">雲のたね</h1>
@@ -159,13 +159,18 @@
 
       <!-- お題タイプC（どちらが先に雲になる?）専用。A・Bそれぞれが雲になった高さに
            水平の破線を残す。線が下にある方＝低い高さで雲になった方＝水蒸気の量が多い方
-           （学習目標⑤を数字なしで伝える）。上限の点線と同じ濃紺の破線＝色は増やさない。
-           y座標・opacityはJSが入れる。狭い画面ではラベルを隠して線だけ残す（CSS） -->
+           （学習目標⑤を数字なしで伝える）。色は増やさない（濃紺のみ）。A・Bの区別は
+           位置ではなく線のスタイル（Aは細い破線・Bは太い破線）とラベルでつける。
+           線の右端 x=160 は、山（最も広い位置で左端 x≈167）とゲージ（左端 x=284）の
+           どちらにもかからないよう左の空き帯で止める。ラベルは両方とも線の左端に置く。
+           #quiz-cmp-now は「いまA・Bどちらを上げているか」を再生中に出す（先にAが
+           上がることを分かりやすくする）。y座標・opacity・文言はJSが入れる -->
       <g id="quiz-cmp-lines" opacity="0">
-        <line id="quiz-cmp-line-a" class="quiz-cmp-line" x1="6" x2="394" y1="0" y2="0" />
-        <text id="quiz-cmp-label-a" class="quiz-cmp-label" x="10" y="0">A</text>
-        <line id="quiz-cmp-line-b" class="quiz-cmp-line" x1="6" x2="394" y1="0" y2="0" opacity="0" />
-        <text id="quiz-cmp-label-b" class="quiz-cmp-label" x="394" y="0" text-anchor="end" opacity="0">B</text>
+        <line id="quiz-cmp-line-a" class="quiz-cmp-line quiz-cmp-line--a" x1="18" x2="160" y1="0" y2="0" />
+        <text id="quiz-cmp-label-a" class="quiz-cmp-label" x="4" y="0">A</text>
+        <line id="quiz-cmp-line-b" class="quiz-cmp-line quiz-cmp-line--b" x1="18" x2="160" y1="0" y2="0" opacity="0" />
+        <text id="quiz-cmp-label-b" class="quiz-cmp-label" x="4" y="0" opacity="0">B</text>
+        <text id="quiz-cmp-now" class="quiz-cmp-now" x="96" y="112" opacity="0"></text>
       </g>
     </svg>
 
@@ -221,6 +226,6 @@
     </div>
   </div>
 
-  <script src="./script.js?v=45"></script>
+  <script src="./script.js?v=46"></script>
 </body>
 </html>
