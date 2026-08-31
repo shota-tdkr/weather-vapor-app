@@ -102,8 +102,9 @@ const MESSAGES = {
   // 以下、常時表示の補足用の凡例（初回起動時の正式なチュートリアルとは別物）
   legendTitle: "記号の説明",
   legendAirMass: "○ = 空気の塊。レバー操作にあわせて位置と高さが自動で変わります（直接ドラッグはできません）。",
-  legendMountain: "▲ = 山。距離レバーで○を近づけるほど、高さも自動で上がります。",
-  legendDistanceLever: "マップ下の横向きのレバー: 右へ動かすほど山に近づき、高さも自動で上がります。",
+  legendMountain: "▲ = 山。○が斜面にぶつかると、斜面に沿って押し上げられて高さが上がります。",
+  legendDistanceLever:
+    "マップ下の横向きのレバー: 右へ動かすと○が山に近づきます。山にぶつかるまでは高さ0のままで、斜面に入ってから高さが上がります。",
   legendVaporLevel:
     "マップ下のもう1本のレバー: 水蒸気の量を4段階（少ない/やや少ない/やや多い/多い）で切り替えます。水蒸気の量が多いほど、低い高さで雲ができます。",
   // ゲージ横の「ラベル＋数値」表示のフォーマット（例: やや多い（9.4 g/m³））
@@ -538,10 +539,10 @@ function updateGauges(height) {
   // 「読むべき数字」を1つ増やしてしまう）。雲ができた瞬間に現れること自体が合図になる
   excessReadoutEl.setAttribute("opacity", isNearZero(excess) ? "0" : "1");
 
-  // 距離レバー（マップ外、横向き）の見た目は、距離自身の可動域
-  // (0〜MOUNTAIN_INFLUENCE_RADIUS)を基準に正規化する（距離が0＝山頂に近いほど
-  // 右へ、比率は反転させる）
-  const distanceRatio = 1 - clamp(currentDistance / MOUNTAIN_INFLUENCE_RADIUS, 0, 1);
+  // 距離レバー（マップ外、横向き）の見た目は、つまみ位置 u（leverRatioFromDistance）
+  // をそのまま使う。0=遠い(左端), 1=山頂(右端)。先頭 APPROACH_LEVER_RATIO(15%) は
+  // 接近区間で高さ0のまま（design.md「『高さ』の定義」参照）
+  const distanceRatio = leverRatioFromDistance(currentDistance);
   distanceLeverFill.setAttribute("width", distanceRatio * LEVER_TRACK_WIDTH);
   distanceLeverHandle.setAttribute("cx", LEVER_TRACK_X + distanceRatio * LEVER_TRACK_WIDTH);
 
@@ -753,29 +754,70 @@ const APPROACH_POINT = {
   y: FAR_POINT.y,
 };
 
-// 全体の移動距離のうち「水平に流れてくる区間」が占める割合。
-// 見た目の速さが区間の境目で急変しないよう、距離の比で区切る
+// 全体の移動距離のうち「水平に流れてくる区間」が占める割合。○の軌道（見た目）を
+// 2段階に分ける境目で、見た目の速さが区間の境目で急変しないよう距離の比で区切る
 const APPROACH_DISTANCE = Math.hypot(APPROACH_POINT.x - FAR_POINT.x, APPROACH_POINT.y - FAR_POINT.y);
 const CLIMB_DISTANCE = Math.hypot(MOUNTAIN_PEAK.x - APPROACH_POINT.x, MOUNTAIN_PEAK.y - APPROACH_POINT.y);
 const APPROACH_RATIO = APPROACH_DISTANCE / (APPROACH_DISTANCE + CLIMB_DISTANCE);
 
+// 「高さ」の定義（2026-08-31変更。design.md「主役：空気塊を持ち上げる操作」参照）
+// -------------------------------------------------------------------------
+// 旧: 高さ = 山への接近度そのもの。○が地面を水平に移動している間も高さが増えていた
+//     ため、「高さ20なのに地面を這っている」「高さ10と25が同じy座標」という、
+//     言葉と見た目の矛盾が起きていた（実ユーザーの指摘）。
+// 新: **接近フェーズは高さ0のまま。斜面に入ってから高さが増える。**
+//     これで「高さ20」と言われたら実際に地面から20だけ上がった位置にいる。
+//
+// そのために「レバー位置 u」と「○の軌道パラメータ t」を分離する:
+//   u = 1 - distance/半径 ∈ [0,1]（0=遠い, 1=山頂）。レバーのつまみの位置そのもの
+//   t = ○の軌道上の位置 ∈ [0,1]。t <= APPROACH_RATIO が接近区間
+// u を APPROACH_LEVER_RATIO で区切り、
+//   u <= 0.15 → 接近（高さ0）。この 15% ぶんの軌道に t の 0〜APPROACH_RATIO を割り当てる
+//   u >  0.15 → 斜面（高さ 0→MAX）。残り 85% に t の APPROACH_RATIO〜1 を割り当てる
+// 幾何の APPROACH_RATIO（42%）をそのままレバーの区切りに使うと可動域の 42% が
+// 「動かしても何も起きない」区間になるため、レバー側だけ 15% に圧縮している。
+// ○の見た目の軌道自体は圧縮の前後で変わらない（同じ2段階の経路をたどる）。
+const APPROACH_LEVER_RATIO = 0.15;
+
+// レバーのつまみ位置（0=遠い, 1=山頂）
+function leverRatioFromDistance(distance) {
+  return 1 - clamp(distance / MOUNTAIN_INFLUENCE_RADIUS, 0, 1);
+}
+
+// レバー位置 u → ○の軌道パラメータ t（接近区間をレバーの先頭 15% に圧縮する）
+function pathTFromLeverRatio(u) {
+  return u <= APPROACH_LEVER_RATIO
+    ? APPROACH_RATIO * (u / APPROACH_LEVER_RATIO)
+    : APPROACH_RATIO + (1 - APPROACH_RATIO) * ((u - APPROACH_LEVER_RATIO) / (1 - APPROACH_LEVER_RATIO));
+}
+
+// 高さ。接近区間（u <= 0.15）では 0 のまま＝まだ上昇していないので気温もゲージも
+// 動かない。これは「山にぶつかって初めて押し上げられる」という教科書の地形性上昇
+// そのものなので、レバーの先頭 15% が無反応なのは仕様（design.md参照）
 function heightFromDistance(distance) {
-  if (distance >= MOUNTAIN_INFLUENCE_RADIUS) return 0;
-  return MOUNTAIN_MAX_HEIGHT * (1 - distance / MOUNTAIN_INFLUENCE_RADIUS);
+  const u = leverRatioFromDistance(distance);
+  if (u <= APPROACH_LEVER_RATIO) return 0;
+  return MOUNTAIN_MAX_HEIGHT * ((u - APPROACH_LEVER_RATIO) / (1 - APPROACH_LEVER_RATIO));
 }
 
 // heightFromDistance の逆。お題モードのタイプB・Cが、目標の高さから距離レバーの
-// 位置を逆算して自動再生するために使う（距離レバーを手で動かすのと同じ経路になる）
+// 位置を逆算して自動再生するために使う。
+// 注意: 高さ0 は u∈[0, 0.15] の全体に対応するので逆関数は一意に決まらない。
+// ここでは **高さ0 = 山のふもと（u = 0.15）** と定義する。こうすると自動再生を
+// 高さ0から始めたときに○がふもとから素直に登り出す（far から始めると最初の1
+// フレームで○が 102px ワープする）。自由モードの初期位置は従来どおり far
+// （currentDistance = MOUNTAIN_INFLUENCE_RADIUS）で、そちらは別に持っている
 function distanceForHeight(height) {
   const clampedHeight = clamp(height, 0, MOUNTAIN_MAX_HEIGHT);
-  return MOUNTAIN_INFLUENCE_RADIUS * (1 - clampedHeight / MOUNTAIN_MAX_HEIGHT);
+  const u = APPROACH_LEVER_RATIO + (1 - APPROACH_LEVER_RATIO) * (clampedHeight / MOUNTAIN_MAX_HEIGHT);
+  return MOUNTAIN_INFLUENCE_RADIUS * (1 - u);
 }
 
 // ○のx座標（距離レバーだけで決まる）。現実の地形性上昇と同じく、
 // ①水平に山へ近づく → ②斜面にぶつかってから斜面沿いに登る、の2段階のx軌道を使う
 // （斜め一直線に山頂へ向かうと、風に流されて山に登るという現象として不自然に見えるため）
 function xForDistance(distance) {
-  const t = 1 - clamp(distance / MOUNTAIN_INFLUENCE_RADIUS, 0, 1); // 0=遠い, 1=山頂
+  const t = pathTFromLeverRatio(leverRatioFromDistance(distance));
   return t <= APPROACH_RATIO
     ? lerp(FAR_POINT.x, APPROACH_POINT.x, t / APPROACH_RATIO)
     : lerp(APPROACH_POINT.x, MOUNTAIN_PEAK.x, (t - APPROACH_RATIO) / (1 - APPROACH_RATIO));
@@ -784,9 +826,11 @@ function xForDistance(distance) {
 // 距離レバーだけで決まる「地形に沿ったy座標」。xForDistanceと同じtを使い、
 // ①水平に山へ近づく → ②斜面にぶつかってから斜面沿いに登る、という同じ2段階の
 // 軌道をyにも描かせる（xとyを別々のtから計算すると、斜面をなぞらずに斜め一直線で
-// 山頂へ向かう不自然な動きになってしまうため、xと必ず同じtを使う）
+// 山頂へ向かう不自然な動きになってしまうため、xと必ず同じtを使う）。
+// 高さの定義変更（2026-08-31）以降、斜面区間では y が表示高さに正比例する
+// （高さ0→y=250, 高さ100→y=120＝山頂）。タイプCの比較線はこれをそのまま使う
 function terrainY(distance) {
-  const t = 1 - clamp(distance / MOUNTAIN_INFLUENCE_RADIUS, 0, 1); // 0=遠い, 1=山頂
+  const t = pathTFromLeverRatio(leverRatioFromDistance(distance));
   return t <= APPROACH_RATIO
     ? lerp(FAR_POINT.y, APPROACH_POINT.y, t / APPROACH_RATIO)
     : lerp(APPROACH_POINT.y, MOUNTAIN_PEAK.y, (t - APPROACH_RATIO) / (1 - APPROACH_RATIO));
@@ -1090,17 +1134,13 @@ function animateHeightTo(from, to, duration, { recordOnset = false, onDone } = {
 
 // タイプC の比較線（雲になった高さに水平の破線を残す）。線が下にある方＝低い高さで
 // 雲になった方（学習目標⑤を数字なしで伝える）。
-// y は ○ の実際の位置(terrainY)ではなく、表示高さ(0-100)に比例した専用スケールを使う。
-// 理由: terrainY は「水平に近づく」区間が y=250 で平坦なので、低い高さ同士（多い/やや多い
-// など）だと線が重なって「どちらが低いか」が読めなくなる。比較線は高さの物差しに
-// 徹し、線が下＝低い高さ、が必ず成り立つようにする（○ は onset を通り過ぎて
-// 表示95まで上がるので、もともと線と ○ の位置は一致しない設計）
-const QUIZ_CMP_Y_TOP = 128; // 表示高さ100のときのy（山頂 y=120 のすぐ下）
-const QUIZ_CMP_Y_BOTTOM = 250; // 表示高さ0のときのy（○の初期yと同じ。地面 y=280 の上）
-
+// 高さの定義変更（2026-08-31）前は、terrainY が接近区間で y=250 のまま平坦だったため
+// 低い高さ同士だと線が重なってしまい、表示高さ比例の専用スケール（QUIZ_CMP_Y_TOP=128）
+// を別に持っていた。定義変更後は terrainY 自体が表示高さに正比例する（高さ0→250、
+// 高さ100→120＝山頂）ので、**○の実際の位置をそのまま線の高さに使える**。
+// 例外がひとつ消え、「線＝○が実際にいた高さ」になった
 function quizCmpLineY(internalHeight) {
-  const displayRatio = clamp(internalHeight / MOUNTAIN_MAX_HEIGHT, 0, 1);
-  return QUIZ_CMP_Y_BOTTOM - displayRatio * (QUIZ_CMP_Y_BOTTOM - QUIZ_CMP_Y_TOP);
+  return terrainY(distanceForHeight(internalHeight));
 }
 
 function drawQuizCmpLine(lineEl, labelEl, internalHeight) {
@@ -1128,7 +1168,9 @@ function resetQuizCmpLines() {
 // お題タイプAの「高さの目安」。選択肢（QUIZ_CHOICES = 10/25/50/75）が○の通り道の
 // どこに当たるかを、小さな目印（circle）＋数字（text）で示す。位置は xForDistance /
 // terrainY で○の実際の軌道の上に置くので、○がドラッグで動くとその目印を通っていく。
-// 数字は目印の少し上、paint-order の薄い縁取り付き（空でも山の上でも読める）。
+// 高さの定義変更（2026-08-31）以降、4つとも斜面の上に等間隔（表示高さ25ごとに
+// y 32.5px）で並ぶ。数字は**目印の左（空の側）**に置く: 目印は斜面の上に乗るので、
+// 数字を真上に置くと山（濃紺）と重なって読みにくい。左に逃がすと必ず空の上に来る。
 // タイプCの比較線とは形（小さなリング）と位置（斜めの通り道の上）で区別できる
 function buildQuizHeightGuide() {
   const svgNs = "http://www.w3.org/2000/svg";
@@ -1146,9 +1188,9 @@ function buildQuizHeightGuide() {
 
     const num = document.createElementNS(svgNs, "text");
     num.setAttribute("class", "quiz-height-num");
-    num.setAttribute("x", mx);
-    num.setAttribute("y", my - 9);
-    num.setAttribute("text-anchor", "middle");
+    num.setAttribute("x", mx - 7);
+    num.setAttribute("y", my + 3); // 目印の高さに揃える（font 9pxの視覚中心）
+    num.setAttribute("text-anchor", "end");
     num.textContent = value;
 
     quizHeightGuideEl.appendChild(mark);
@@ -1315,7 +1357,12 @@ function startQuizQuestion() {
   // タイプC は最初に A 側の段階をゲージに出しておく（予想の手がかり）
   const initialLevelIndex = q.type === "C" ? q.aIndex : q.vaporLevelIndex;
   setVaporLevel(initialLevelIndex, true);
-  currentDistance = MOUNTAIN_INFLUENCE_RADIUS;
+  // お題モードは「高さ0 = 山のふもと」から始める（distanceForHeight(0)）。
+  // お題が問うのは高さなので、レバー先頭の接近区間（高さ0のまま横に動くだけ）を
+  // 毎問たどらせる必要がない。タイプB・Cの自動再生もここから素直に登り出す
+  // （far から始めると最初のフレームで○が102pxワープする）。
+  // 自由モードの初期位置は従来どおり far のまま
+  currentDistance = distanceForHeight(0);
   currentHeight = 0;
   positionAirMass(currentDistance);
   updateGauges(currentHeight);
