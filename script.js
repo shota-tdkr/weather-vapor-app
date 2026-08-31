@@ -195,9 +195,11 @@ const MESSAGES = {
   // 暗記に頼らず「条件を変えたときに結果がどう変わるか」で答えられる問い方
   // （docs/design.md「お題の形式」参照）。確かめる操作は自動再生にして、操作の
   // 精度で結果が変わる余地をなくす。高さは「40 / 100」の形で相対値だと分かるように
-  // する（情報パネルの「高さ 40 / 100」と一貫。「40m」と誤読させない）
-  quizQuestionB: (label, value, height) =>
-    `水蒸気の量が「${label}」空気（${value} g/m³）です。\n高さ${height} / 100まで上げたら、雲はできる？`,
+  // する（情報パネルの「高さ 40 / 100」と一貫。「40m」と誤読させない）。
+  // 高さも水蒸気の量と同じ「言葉で直感 → 数字で確認」にする（heightWord）。
+  // あわせてマップ上に目標高さの目印も出す（renderQuizHeightGuide）
+  quizQuestionB: (label, value, height, heightWord) =>
+    `水蒸気の量が「${label}」空気（${value} g/m³）です。\n高さ${height} / 100（${heightWord}）まで上げたら、雲はできる？`,
   quizQuestionC: (aLabel, aValue, bLabel, bValue) =>
     `A: 水蒸気の量が「${aLabel}」空気（${aValue} g/m³）\nB: 水蒸気の量が「${bLabel}」空気（${bValue} g/m³）\nどちらが低い高さで雲になる？`,
   quizChoiceCanForm: "できる",
@@ -302,6 +304,10 @@ const QUIZ_CHOICES = [10, 25, 50, 75];
 // 常に「まだできない」になり、段階と答えの対応を暗記できてしまう。5と90を含めて
 // それを潰している。docs/design.md「お題の形式」参照）
 const QUIZ_TYPE_B_HEIGHTS = [5, 20, 40, 65, 90];
+// 高さ5段階の「言葉の目安」。水蒸気の量のラベル（少ない/やや少ない/やや多い/多い）と
+// 同じく「やや〜」を真ん中を軸に対称に使う（design.md「お題の形式」参照）。
+// index は QUIZ_TYPE_B_HEIGHTS と対応
+const QUIZ_TYPE_B_HEIGHT_LABELS = ["低い", "やや低い", "中くらい", "やや高い", "高い"];
 const QUIZ_POOL_B = [];
 for (let vi = 0; vi < VAPOR_LEVELS.length; vi++) {
   for (const h of QUIZ_TYPE_B_HEIGHTS) {
@@ -889,6 +895,7 @@ let distanceDragStart = null;
 bindLeverDrag(distanceLever, {
   onStart: (svgX) => {
     if (distanceLocked) return;
+    cancelQuizAnim(); // お題タイプAの出題時の滑走がまだ続いていたら、手で触った時点で止める
     distanceDragStart = { svgX, value: currentDistance, heightBefore: currentHeight };
   },
   onMove: (svgX) => {
@@ -1015,7 +1022,8 @@ function renderQuizQuestion() {
     quizQuestionEl.textContent = MESSAGES.quizQuestion(lv.label, lv.value.toFixed(1));
   } else if (q.type === "B") {
     const lv = VAPOR_LEVELS[q.vaporLevelIndex];
-    quizQuestionEl.textContent = MESSAGES.quizQuestionB(lv.label, lv.value.toFixed(1), q.targetHeight);
+    const heightWord = QUIZ_TYPE_B_HEIGHT_LABELS[QUIZ_TYPE_B_HEIGHTS.indexOf(q.targetHeight)];
+    quizQuestionEl.textContent = MESSAGES.quizQuestionB(lv.label, lv.value.toFixed(1), q.targetHeight, heightWord);
   } else {
     const a = VAPOR_LEVELS[q.aIndex];
     const b = VAPOR_LEVELS[q.bIndex];
@@ -1093,17 +1101,54 @@ const QUIZ_ANIM_C_TOP = (95 / HEIGHT_DISPLAY_SCALE) * MOUNTAIN_MAX_HEIGHT;
 
 let quizAnimFrame = null;
 let quizAnimTimer = null;
+let quizGlideFrame = null; // 出題時の「遠方→ふもと」水平滑走（下記 glideAirMassToFoot）
 
 function cancelQuizAnim() {
   if (quizAnimFrame !== null) {
     cancelAnimationFrame(quizAnimFrame);
     quizAnimFrame = null;
   }
+  if (quizGlideFrame !== null) {
+    cancelAnimationFrame(quizGlideFrame);
+    quizGlideFrame = null;
+  }
   if (quizAnimTimer !== null) {
     clearTimeout(quizAnimTimer);
     quizAnimTimer = null;
   }
   airMass.classList.remove("dragging");
+}
+
+// お題出題時、○を遠方(far)からふもと(高さ0の位置)まで**高さ0のまま水平に**滑らせる。
+// 「空気が山に向かって流れてきた」という毎問の導入で、開発者が気に入っていた水平移動
+// の見た目を残すため（2026-08-31の「高さ0=ふもと」化で消えていた）。
+// 高さは0のままなので heightFromDistance が接近区間で0を返す＝この間 気温・ゲージ・
+// 雲・変化ログは動かない（updateGauges(0) は静止画。レバーのつまみ位置だけ○に同期）。
+// 「確かめる」を押す頃には滑走は終わっているので、自動再生（animateHeightTo）の
+// 所要時間は増えない。滑走中に押された場合は runQuizVerify* 冒頭で cancelQuizAnim +
+// ふもとにスナップして受け止める
+const QUIZ_GLIDE_MS = 700;
+
+function glideAirMassToFoot() {
+  cancelQuizAnim();
+  const fromDist = currentDistance; // 呼び出し側が遠方(MOUNTAIN_INFLUENCE_RADIUS)に置いている前提
+  const toDist = distanceForHeight(0);
+  const startTime = performance.now();
+  currentHeight = 0;
+  airMass.classList.add("dragging"); // トランジションを切って毎フレーム1:1で動かす
+  function tick(now) {
+    const t = Math.min(1, (now - startTime) / QUIZ_GLIDE_MS);
+    currentDistance = fromDist + (toDist - fromDist) * t;
+    positionAirMass(currentDistance);
+    updateGauges(0); // 高さ0固定＝静止だが、レバーのつまみを○に同期させる
+    if (t >= 1) {
+      airMass.classList.remove("dragging");
+      quizGlideFrame = null;
+      return;
+    }
+    quizGlideFrame = requestAnimationFrame(tick);
+  }
+  quizGlideFrame = requestAnimationFrame(tick);
 }
 
 function animateHeightTo(from, to, duration, { recordOnset = false, onDone } = {}) {
@@ -1165,18 +1210,23 @@ function resetQuizCmpLines() {
   quizCmpNowEl.setAttribute("opacity", "0");
 }
 
-// お題タイプAの「高さの目安」。選択肢（QUIZ_CHOICES = 10/25/50/75）が○の通り道の
-// どこに当たるかを、小さな目印（circle）＋数字（text）で示す。位置は xForDistance /
-// terrainY で○の実際の軌道の上に置くので、○がドラッグで動くとその目印を通っていく。
-// 高さの定義変更（2026-08-31）以降、4つとも斜面の上に等間隔（表示高さ25ごとに
-// y 32.5px）で並ぶ。数字は**目印の左（空の側）**に置く: 目印は斜面の上に乗るので、
-// 数字を真上に置くと山（濃紺）と重なって読みにくい。左に逃がすと必ず空の上に来る。
-// タイプCの比較線とは形（小さなリング）と位置（斜めの通り道の上）で区別できる
-function buildQuizHeightGuide() {
+// お題の「高さの目安」。渡された表示高さ(0-100)の配列それぞれについて、○の通り道の
+// どこに当たるかを 小さな目印（circle）＋数字（text）で示す。位置は xForDistance /
+// terrainY で○の実際の軌道の上に置くので、○がドラッグ／自動再生で動くとその目印を
+// 通っていく（タイプBでは自動再生が目標高さちょうどで止まるので、目印が「ゴール
+// ライン」になり○がそこにピタリと合う）。
+//  タイプA → QUIZ_CHOICES の4つ（10/25/50/75）
+//  タイプB → 目標高さ1つ
+//  タイプC → なし（空配列を渡すと消える）
+// 高さの定義変更（2026-08-31）以降、目印は斜面の上に、表示高さに正比例して並ぶ。
+// 数字は**目印の左（空の側）**に置く: 目印は斜面の上に乗るので、真上に置くと山
+// （濃紺）と重なって読みにくい。左に逃がすと必ず空の上に来る。タイプCの比較線とは
+// 形（小さなリング）と位置（斜めの通り道の上）で区別できる
+function renderQuizHeightGuide(values) {
+  quizHeightGuideEl.textContent = ""; // 前問ぶんをクリア
   const svgNs = "http://www.w3.org/2000/svg";
-  for (const value of QUIZ_CHOICES) {
-    const internalHeight = (value / HEIGHT_DISPLAY_SCALE) * MOUNTAIN_MAX_HEIGHT;
-    const distance = distanceForHeight(internalHeight);
+  for (const value of values) {
+    const distance = distanceForHeight((value / HEIGHT_DISPLAY_SCALE) * MOUNTAIN_MAX_HEIGHT);
     const mx = xForDistance(distance);
     const my = terrainY(distance);
 
@@ -1196,17 +1246,19 @@ function buildQuizHeightGuide() {
     quizHeightGuideEl.appendChild(mark);
     quizHeightGuideEl.appendChild(num);
   }
-}
-
-function setQuizHeightGuide(show) {
-  quizHeightGuideEl.setAttribute("opacity", show ? "1" : "0");
+  quizHeightGuideEl.setAttribute("opacity", values.length > 0 ? "1" : "0");
 }
 
 function runQuizVerifyB() {
   const q = currentQuizQuestion();
+  cancelQuizAnim(); // 出題時の滑走がまだ続いていたら止める
   quizVerifyButton.hidden = true;
   quizVerifyButton.disabled = true;
   quizHintEl.textContent = "";
+  // ふもとにスナップしてから上昇（滑走中に「確かめる」を押された場合の受け止め）
+  currentHeight = 0;
+  currentDistance = distanceForHeight(0);
+  positionAirMass(currentDistance);
   const targetInternal = (q.targetHeight / HEIGHT_DISPLAY_SCALE) * MOUNTAIN_MAX_HEIGHT;
   animateHeightTo(0, targetInternal, QUIZ_ANIM_B_MS, {
     recordOnset: true,
@@ -1225,6 +1277,7 @@ function runQuizVerifyB() {
 
 function runQuizVerifyC() {
   const q = currentQuizQuestion();
+  cancelQuizAnim(); // 出題時の滑走がまだ続いていたら止める
   quizVerifyButton.hidden = true;
   quizVerifyButton.disabled = true;
   quizHintEl.textContent = "";
@@ -1345,31 +1398,28 @@ function revealQuizAnswerC(aOnset, bOnset) {
   );
 }
 
-// 問題ごとに、水蒸気の量を強制的に切り替え、距離レバーを遠い(高さ0)に戻して
-// から出題する。既に雲が出ている状態から始まると「動かさなくても答え合わせが
-// 出る」ことになってしまうため、必ず高さ0から始める
+// 問題ごとに、水蒸気の量を強制的に切り替え、○を遠方に置いてから出題する。
+// 既に雲が出ている状態から始まると「動かさなくても答え合わせが出る」ことに
+// なってしまうため、必ず高さ0から始める。○は出題直後に遠方→ふもとへ水平に
+// 滑る（glideAirMassToFoot。3タイプとも見た目の初期位置は遠方で揃う）
 function startQuizQuestion() {
   cancelQuizAnim();
   resetQuizCmpLines();
   const q = currentQuizQuestion();
-  // 高さの目安（選択肢 10/25/50/75 の位置）はタイプAのときだけ出す
-  setQuizHeightGuide(q.type === "A");
+  // 高さの目安: タイプA=選択肢4つ / タイプB=目標高さ1つ / タイプC=なし
+  renderQuizHeightGuide(q.type === "A" ? QUIZ_CHOICES : q.type === "B" ? [q.targetHeight] : []);
   // タイプC は最初に A 側の段階をゲージに出しておく（予想の手がかり）
   const initialLevelIndex = q.type === "C" ? q.aIndex : q.vaporLevelIndex;
-  setVaporLevel(initialLevelIndex, true);
-  // お題モードは「高さ0 = 山のふもと」から始める（distanceForHeight(0)）。
-  // お題が問うのは高さなので、レバー先頭の接近区間（高さ0のまま横に動くだけ）を
-  // 毎問たどらせる必要がない。タイプB・Cの自動再生もここから素直に登り出す
-  // （far から始めると最初のフレームで○が102pxワープする）。
-  // 自由モードの初期位置は従来どおり far のまま
-  currentDistance = distanceForHeight(0);
   currentHeight = 0;
+  currentDistance = MOUNTAIN_INFLUENCE_RADIUS; // 遠方から。この後 glide で高さ0のままふもとへ
+  airMass.classList.add("dragging"); // 遠方への配置は一瞬で（トランジションを切る。glide が引き継ぐ）
+  setVaporLevel(initialLevelIndex, true); // updateGauges(0) を呼ぶ
   positionAirMass(currentDistance);
-  updateGauges(currentHeight);
   quizPhase = "choosing";
   quizSelectedChoice = null;
   setDistanceLeverLocked(true);
   renderQuizQuestion(); // 「確かめる」ボタンの表示・有効/無効はここで決まる（タイプA=非表示、B/C予想前=無効表示）
+  glideAirMassToFoot(); // ○を遠方→ふもとへ 700ms（高さ0のまま。「空気が山に流れてきた」導入）
 }
 
 function startQuiz() {
@@ -1431,7 +1481,7 @@ function quizSummaryRow(r) {
 function showQuizSummary() {
   cancelQuizAnim();
   resetQuizCmpLines();
-  setQuizHeightGuide(false);
+  renderQuizHeightGuide([]);
   quizPanel.hidden = true;
   quizSummaryEl.hidden = false;
   quizSummaryTitleEl.textContent = MESSAGES.quizSummaryTitle(quizResults.length);
@@ -1449,7 +1499,7 @@ function showQuizSummary() {
 function exitQuiz() {
   cancelQuizAnim();
   resetQuizCmpLines();
-  setQuizHeightGuide(false);
+  renderQuizHeightGuide([]);
   quizVerifyButton.hidden = true;
   quizActive = false;
   quizStartButton.hidden = false;
@@ -1494,7 +1544,7 @@ vaporLevelCaptionEl.textContent = MESSAGES.leverCaptionVapor;
 vaporLevelLever.setAttribute("aria-label", MESSAGES.leverAriaVapor);
 cloudFlashMainEl.textContent = MESSAGES.cloudFlash;
 cloudFlashSubEl.textContent = MESSAGES.cloudFlashSub;
-buildQuizHeightGuide(); // ○の通り道の上に選択肢(10/25/50/75)の目印を1度だけ生成（表示はJSがopacityで）
+// 高さの目安はお題の問題ごとに renderQuizHeightGuide(values) で作り直す（init不要）
 
 positionAirMass(currentDistance);
 renderVaporLevelControl();
