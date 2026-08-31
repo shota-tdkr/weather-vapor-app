@@ -128,6 +128,10 @@ const MESSAGES = {
   // 変化ログ（因果を段階表示するテキスト）。数値を埋め込むため関数にしているが、
   // 文言はすべてここに集約する（コード中に日本語を散らさない）
   changeLogTitle: "変化ログ",
+  // ログが空のときの案内（resetChangeLog で薄く1行出す）。お題モードは各問の開始時、
+  // 自由モードは起動時とお題からの復帰時に出す。最初の実ログが入ると消える
+  changeLogHintQuiz: "予想を選んで、確かめてみよう",
+  changeLogHintFree: "レバーを動かすと、変化の理由がここに順番に出ます",
   logLifted: "空気の塊を持ち上げました",
   logLowered: "空気の塊を下ろしました",
   // 「上げると冷える」の中間過程。教科書（中学理科・雲のでき方）:「空気は上昇すると
@@ -150,10 +154,11 @@ const MESSAGES = {
   logExcessStillRoom: "→ まだ上限に余裕があるので、水滴はできていません",
   // 雲ができた瞬間にマップ上へ数秒だけ出す一行（変化ログは読まれないことがあるため、
   // 因果の要点をその場・その瞬間に出す。詳細は従来どおり変化ログが補う）。
-  // 「ここで雲ができた！」はユーザーが今見た現象をそのまま言葉にするだけで
-  // 説明臭さがない。cloudFlashSub は演出と説明を分けるための小さな補足
-  // （狭い画面で収まらなければ非表示。#cloud-flash-sub の CSS 参照）
-  cloudFlash: "ここで雲ができた！",
+  // このフラッシュはマップ内の固定位置（x=96中心。design.md「配置は固定」）に出るので
+  // 「ここで」は実際には何も指していない。位置を示す語を外し、現象だけを言う。
+  // cloudFlashSub は演出と説明を分けるための小さな補足（狭い画面で収まらなければ
+  // 非表示。#cloud-flash-sub の CSS 参照）
+  cloudFlash: "雲ができた！",
   cloudFlashSub: "水蒸気の一部が水滴に変わった",
   // 「上限をこえた水蒸気」がそのまま水蒸気で存在し続けるように読めるという指摘を受け、
   // 「こえた分が水滴になる」と因果を明示する（Phase 1 の「あふれ」→「水滴になった量」
@@ -521,6 +526,17 @@ function flashCloudMoment() {
   requestAnimationFrame(() => airMassCloud.classList.add("pop"));
 }
 
+// 「雲ができた！」フラッシュと雲の弾みを即座に消す。お題の問題切替・自由モード
+// 復帰・まとめ表示で呼ぶ（前問の演出が2.5秒残って次の問題の結果と誤解されないように）
+function hideCloudFlash() {
+  cloudFlashEl.setAttribute("opacity", "0");
+  if (cloudFlashTimer) {
+    clearTimeout(cloudFlashTimer);
+    cloudFlashTimer = null;
+  }
+  airMassCloud.classList.remove("pop");
+}
+
 function updateGauges(height) {
   const temp = INITIAL_TEMP - height * LAPSE_RATE;
   const capacity = saturationVaporAmount(temp);
@@ -697,6 +713,9 @@ function buildVaporLevelChangeLog(beforeIndex, afterIndex) {
 }
 
 function appendLogLine(text) {
+  // 最初の実ログが入る時点で案内（.change-log-hint）を外す
+  const hint = changeLogList.querySelector(".change-log-hint");
+  if (hint) hint.remove();
   const li = document.createElement("li");
   li.textContent = text;
   changeLogList.appendChild(li);
@@ -709,6 +728,8 @@ function appendLogLine(text) {
 // 短時間に何度も操作されても因果チェーン同士が混ざらないよう、1つずつ順番に表示するキュー
 const logQueue = [];
 let logQueueRunning = false;
+// resetChangeLog のたびに +1。進行中の showNext チェーンは世代が変わったら自分を打ち切る
+let logGeneration = 0;
 
 function runLogQueue() {
   if (logQueue.length === 0) {
@@ -716,9 +737,11 @@ function runLogQueue() {
     return;
   }
   logQueueRunning = true;
+  const gen = logGeneration;
   const lines = logQueue.shift();
   let index = 0;
   function showNext() {
+    if (gen !== logGeneration) return; // 途中で resetChangeLog された
     if (index < lines.length) {
       appendLogLine(lines[index]);
       index += 1;
@@ -728,6 +751,23 @@ function runLogQueue() {
     }
   }
   showNext();
+}
+
+// 変化ログを空にする。進行中の段階表示キューも止める（logGeneration を上げて、
+// 走っている showNext チェーンを次の tick で打ち切る）。hint を渡すと案内を薄く1行出す。
+// お題の各問開始時・自由モード復帰時・起動時に呼ぶ（前問のログが「雲ができました」の
+// まま残って現在の問題の結果と誤解されるのを防ぐ）
+function resetChangeLog(hint) {
+  logGeneration += 1;
+  logQueue.length = 0;
+  logQueueRunning = false;
+  changeLogList.textContent = "";
+  if (hint) {
+    const li = document.createElement("li");
+    li.textContent = hint;
+    li.className = "change-log-hint";
+    changeLogList.appendChild(li);
+  }
 }
 
 function appendLogCascade(lines) {
@@ -1432,6 +1472,8 @@ function revealQuizAnswerC(aOnset, bOnset) {
 function startQuizQuestion() {
   cancelQuizAnim();
   resetQuizCmpLines();
+  hideCloudFlash(); // 前問の「雲ができた！」が残らないように
+  resetChangeLog(MESSAGES.changeLogHintQuiz); // 前問のログを消し、案内を出す（未確認の問題で「雲ができました」と誤解されないため）
   const q = currentQuizQuestion();
   // 高さの目安: タイプA=選択肢4つ / タイプB=目標高さ1つ / タイプC=なし
   renderQuizHeightGuide(q.type === "A" ? QUIZ_CHOICES : q.type === "B" ? [q.targetHeight] : []);
@@ -1509,6 +1551,7 @@ function showQuizSummary() {
   cancelQuizAnim();
   resetQuizCmpLines();
   renderQuizHeightGuide([]);
+  hideCloudFlash(); // まとめの裏でマップの「雲ができた！」が残らないように
   quizPanel.hidden = true;
   quizSummaryEl.hidden = false;
   quizSummaryTitleEl.textContent = MESSAGES.quizSummaryTitle;
@@ -1528,6 +1571,8 @@ function exitQuiz() {
   cancelQuizAnim();
   resetQuizCmpLines();
   renderQuizHeightGuide([]);
+  hideCloudFlash();
+  resetChangeLog(MESSAGES.changeLogHintFree); // お題の自動再生ログを自由モードに持ち越さない
   quizVerifyButton.hidden = true;
   quizActive = false;
   quizStartButton.hidden = false;
@@ -1577,6 +1622,7 @@ cloudFlashSubEl.textContent = MESSAGES.cloudFlashSub;
 positionAirMass(currentDistance);
 renderVaporLevelControl();
 updateGauges(currentHeight);
+resetChangeLog(MESSAGES.changeLogHintFree); // 起動時は空＝案内を1行だけ出す
 
 // チュートリアル（初回起動時のみ、今のシーンに吹き出しを重ねるだけで別画面には遷移しない）
 const TUTORIAL_STORAGE_KEY = "weather-app-tutorial-seen";
