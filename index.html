@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>雲のたね</title>
   <!-- ?v=N はキャッシュ対策。style.css/script.js を編集したら両方の番号を1つ上げる -->
-  <link rel="stylesheet" href="./style.css?v=49">
+  <link rel="stylesheet" href="./style.css?v=50">
 </head>
 <body>
   <h1 class="app-title">雲のたね</h1>
@@ -115,9 +115,10 @@
       </g>
 
       <!-- 水蒸気ゲージ（主役、反転済み）: 塗り＝水蒸気の量（高さを変えても動かないが、
-           下の水蒸気の量スライダーで4段階に切り替えられる）、点線＝飽和水蒸気量
-           （気温が下がると降りてくる）。点線が塗りより下に来た分を白抜き＋輪郭線で
-           示す（○が白く曇る雲の表現と同じ視覚言語。design.md参照） -->
+           下の水蒸気の量スライダーで4段階に切り替えられる）、点線＝水蒸気の上限
+           （その気温で含むことのできる量。気温が下がると降りてくる。正式用語の
+           「飽和水蒸気量」は3問後のまとめでだけ渡す）。点線が塗りより下に来た分を
+           白抜き＋輪郭線で示す（○が白く曇る雲の表現と同じ視覚言語。design.md参照） -->
       <g class="vapor-panel" transform="translate(296,20)">
         <rect class="panel-plate" x="-12" y="-20" width="112" height="270" rx="6" />
         <!-- 見出し「水蒸気の量」の下に、段階のラベル＋数値をまとめて出す
@@ -235,6 +236,6 @@
     </div>
   </div>
 
-  <script src="./script.js?v=49"></script>
+  <script src="./script.js?v=50"></script>
 </body>
 </html>
