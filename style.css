@@ -211,7 +211,17 @@ body {
 
 .quiz-summary-title {
   margin: 0 0 0.5rem;
+  font-size: 1rem;
   font-weight: bold;
+}
+
+/* 対比表の小見出し。「まとめ」（1rem）より一段下の階層と分かるよう、本文より
+   小さめ＋やや薄く。太字は残して「見出し」であることは示す */
+.quiz-summary-results-heading {
+  margin: 0 0 0.35rem;
+  font-size: 0.8rem;
+  font-weight: bold;
+  opacity: 0.75;
 }
 
 /* 4問のまとめ表（空気 / あなたの予想 / 実際）。横スクロールが出ないよう、

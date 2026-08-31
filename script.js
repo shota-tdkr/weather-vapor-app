@@ -62,6 +62,7 @@ const quizRevealTextEl = document.getElementById("quiz-reveal-text");
 const quizNextButton = document.getElementById("quiz-next-button");
 const quizSummaryEl = document.getElementById("quiz-summary");
 const quizSummaryTitleEl = document.getElementById("quiz-summary-title");
+const quizSummaryResultsHeadingEl = document.getElementById("quiz-summary-results-heading");
 const quizSummaryTableWrap = document.getElementById("quiz-summary-table-wrap");
 const quizSummaryConclusionEl = document.getElementById("quiz-summary-conclusion");
 const quizSummaryTermEl = document.getElementById("quiz-summary-term");
@@ -245,7 +246,12 @@ const MESSAGES = {
     `${winner}（水蒸気の量が「${winnerLabel}」空気）の方が、低い高さで雲になりました。水蒸気の量が多いほど、少し上がったところで上限に達します。`,
   quizNextButtonLabel: "次の問題へ",
   quizFinishButtonLabel: "まとめを見る",
-  quizSummaryTitle: (total) => `${total}問終わりました`,
+  // お題は C→B→A の3問固定なので問題数は受け取らない。「◯問終わりました」は完了
+  // 通知で見出しとして弱かったため、画面の役割を表す「まとめ」に変更（読み順は
+  // まとめ → 要点(quizSummaryConclusion) → 3問の結果 → 表 → 正式用語(quizSummaryTerm)）
+  quizSummaryTitle: "まとめ",
+  // 対比表の直前の小見出し。要点（法則）の後、具体的な3問の振り返りに入ることを示す
+  quizSummaryResultsHeading: "3問の結果",
   // まとめ表（3問）: 予想と実際を出題順に並べる。「正解/不正解」は出さず、見比べれば
   // どこがずれたか分かる形にする（design.md「お題モード」参照）。タイプが混在するため
   // 水蒸気量ソートはやめた。1列目は問題（タイプごとに書式が違う。狭い画面は短縮形）
@@ -1505,7 +1511,9 @@ function showQuizSummary() {
   renderQuizHeightGuide([]);
   quizPanel.hidden = true;
   quizSummaryEl.hidden = false;
-  quizSummaryTitleEl.textContent = MESSAGES.quizSummaryTitle(quizResults.length);
+  quizSummaryTitleEl.textContent = MESSAGES.quizSummaryTitle;
+  quizSummaryConclusionEl.textContent = MESSAGES.quizSummaryConclusion;
+  quizSummaryResultsHeadingEl.textContent = MESSAGES.quizSummaryResultsHeading;
   const bodyRows = quizResults.map(quizSummaryRow).join("");
   quizSummaryTableWrap.innerHTML =
     `<table class="quiz-summary-table"><thead><tr>` +
@@ -1513,7 +1521,6 @@ function showQuizSummary() {
     `<th scope="col">${MESSAGES.quizSummaryHeadGuess}</th>` +
     `<th scope="col">${MESSAGES.quizSummaryHeadActual}</th>` +
     `</tr></thead><tbody>${bodyRows}</tbody></table>`;
-  quizSummaryConclusionEl.textContent = MESSAGES.quizSummaryConclusion;
   quizSummaryTermEl.textContent = MESSAGES.quizSummaryTerm;
 }
 

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>雲のたね</title>
   <!-- ?v=N はキャッシュ対策。style.css/script.js を編集したら両方の番号を1つ上げる -->
-  <link rel="stylesheet" href="./style.css?v=50">
+  <link rel="stylesheet" href="./style.css?v=51">
 </head>
 <body>
   <h1 class="app-title">雲のたね</h1>
@@ -45,8 +45,13 @@
 
   <div id="quiz-summary" class="quiz-summary" hidden>
     <p id="quiz-summary-title" class="quiz-summary-title"></p>
-    <div id="quiz-summary-table-wrap" class="quiz-summary-table-wrap"></div>
+    <!-- 今回の学習ポイントを表の上（見出し直下）に置く。「まとめ→要点→3問の振り返り
+         →正式用語」の読み順。予想が外れた回もあるので「発見！」等の断定見出しは
+         使わず、その回の振り返りとして「〜になりましたね」の語調のまま出す
+         （design.md「お題の形式」参照） -->
     <p id="quiz-summary-conclusion" class="quiz-summary-conclusion"></p>
+    <p id="quiz-summary-results-heading" class="quiz-summary-results-heading"></p>
+    <div id="quiz-summary-table-wrap" class="quiz-summary-table-wrap"></div>
     <!-- 学校で使う正式用語（飽和水蒸気量）への橋渡し。まとめの一番下に、破線で
          区切って「授業に持ち帰る一言」として置く -->
     <p id="quiz-summary-term" class="quiz-summary-term"></p>
@@ -236,6 +241,6 @@
     </div>
   </div>
 
-  <script src="./script.js?v=50"></script>
+  <script src="./script.js?v=51"></script>
 </body>
 </html>
