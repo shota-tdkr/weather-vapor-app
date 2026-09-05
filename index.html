@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>雲のたね</title>
   <!-- ?v=N はキャッシュ対策。style.css/script.js を編集したら両方の番号を1つ上げる -->
-  <link rel="stylesheet" href="./style.css?v=60">
+  <link rel="stylesheet" href="./style.css?v=61">
 </head>
 <body>
   <h1 class="app-title">雲のたね</h1>
@@ -199,10 +199,13 @@
          ○の動く向きを一致させる（従来の縦向きは「指は上、○は右」という不一致があった） -->
     <div class="levers" id="distance-lever-panel">
       <p id="distance-lever-caption" class="lever-caption"></p>
+      <!-- トラック端(16〜384)はつまみ半径14ぶんの余白を確保した位置
+           （script.jsのLEVER_TRACK_X/LEVER_TRACK_WIDTH参照。2026-09-05・
+           実機指摘: 従来の4〜396だとつまみが画面端で欠けて掴みにくかった） -->
       <svg id="distance-lever" class="lever-svg" viewBox="0 0 400 40" xmlns="http://www.w3.org/2000/svg" aria-label="距離レバー">
-        <rect class="gauge-track" x="4" y="13" width="392" height="14" rx="7" />
-        <rect id="distance-lever-fill" class="gauge-fill" x="4" y="13" width="0" height="14" rx="7" />
-        <circle id="distance-lever-handle" class="lever-handle" cx="4" cy="20" r="14" />
+        <rect class="gauge-track" x="16" y="13" width="368" height="14" rx="7" />
+        <rect id="distance-lever-fill" class="gauge-fill" x="16" y="13" width="0" height="14" rx="7" />
+        <circle id="distance-lever-handle" class="lever-handle" cx="16" cy="20" r="14" />
       </svg>
     </div>
 
@@ -211,14 +214,16 @@
          使う（design.md「水蒸気の量スライダー」参照） -->
     <div class="levers" id="vapor-level-panel">
       <p id="vapor-level-caption" class="lever-caption"></p>
+      <!-- トラック端(16〜384)は距離レバーと同じ余白（LEVER_TRACK_X/
+           LEVER_TRACK_WIDTH共通）。目盛りも新しいトラック幅の4等分位置 -->
       <svg id="vapor-level-lever" class="lever-svg" viewBox="0 0 400 40" xmlns="http://www.w3.org/2000/svg" aria-label="水蒸気の量スライダー">
-        <rect class="gauge-track" x="4" y="13" width="392" height="14" rx="7" />
-        <rect id="vapor-level-fill" class="gauge-fill" x="4" y="13" width="0" height="14" rx="7" />
-        <line class="vapor-level-tick" x1="4" y1="8" x2="4" y2="25" />
-        <line class="vapor-level-tick" x1="134.67" y1="8" x2="134.67" y2="25" />
-        <line class="vapor-level-tick" x1="265.33" y1="8" x2="265.33" y2="25" />
-        <line class="vapor-level-tick" x1="396" y1="8" x2="396" y2="25" />
-        <circle id="vapor-level-handle" class="lever-handle" cx="4" cy="20" r="14" />
+        <rect class="gauge-track" x="16" y="13" width="368" height="14" rx="7" />
+        <rect id="vapor-level-fill" class="gauge-fill" x="16" y="13" width="0" height="14" rx="7" />
+        <line class="vapor-level-tick" x1="16" y1="8" x2="16" y2="25" />
+        <line class="vapor-level-tick" x1="138.67" y1="8" x2="138.67" y2="25" />
+        <line class="vapor-level-tick" x1="261.33" y1="8" x2="261.33" y2="25" />
+        <line class="vapor-level-tick" x1="384" y1="8" x2="384" y2="25" />
+        <circle id="vapor-level-handle" class="lever-handle" cx="16" cy="20" r="14" />
       </svg>
       <!-- 数値(g/m³)はマップ内のゲージ横に1箇所だけ置く。ここに再掲すると同じ数字が
            画面に2度出る（お題モードでは問題文と合わせて3度）。「同じ数字を2回描いて
@@ -253,6 +258,6 @@
     </div>
   </div>
 
-  <script src="./script.js?v=60"></script>
+  <script src="./script.js?v=61"></script>
 </body>
 </html>

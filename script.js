@@ -194,7 +194,7 @@ const MESSAGES = {
     "空気を山で持ち上げると、雲ができます。\n『お題に挑戦』で、雲ができる条件を予想して確かめてみよう。",
   tutorialStep2:
     "冷たいコップの外側に水のつぶがつくのは、まわりの空気が冷やされて、水蒸気を抱えきれなくなるから。\n同じことが空の上でも起きていて、抱えきれなかった分が水のつぶ＝雲になるよ。",
-  tutorialStep3: "距離レバーを動かして、空気の塊（○）を山（▲）に近づけてみよう",
+  tutorialStep3: "距離レバーを動かして、空気の塊（○）を山（▲）に近づけてみよう。",
   tutorialStep4:
     "レバーを動かすと、画面の下の「変化ログ」に、なぜそうなったかが順番に表示されるよ。スクロールして見てみよう。",
   tutorialNext: "次へ",
@@ -406,9 +406,15 @@ const VAPOR_TRACK_HEIGHT = 184;
 const TEMP_STRIP_WIDTH = 76;
 
 // 距離レバー（マップ外、横向き）のトラック寸法。cyは横向きなので常に一定
-// （index.html側の初期値のまま動かさない）
-const LEVER_TRACK_X = 4;
-const LEVER_TRACK_WIDTH = 392;
+// （index.html側の初期値のまま動かさない）。2026-09-05: 従来は X=4/WIDTH=392
+// （トラック端が4〜396）で、つまみ半径14に対して余白が10しかなく、つまみが
+// 画面端（viewBox 0〜400の外）で欠けて見える・掴みにくいという実機指摘が
+// あった。つまみ半径ぶん（14）以上の余白を確保できるよう X=16/WIDTH=368
+// （トラック端が16〜384、つまみの円は2〜30・370〜398でどちらもviewBox内）
+// に変更した。index.htmlのtrack/fill rectの x・width、つまみ circle の
+// 初期cx、水蒸気の量スライダーの目盛り線もこの値に合わせて更新すること
+const LEVER_TRACK_X = 16;
+const LEVER_TRACK_WIDTH = 368;
 
 // 雲の段階数。CLOUD_PATHSの要素数と一致させる
 const CLOUD_STEPS = 4;
@@ -1112,12 +1118,16 @@ function renderQuizQuestion() {
     quizQuestionEl.textContent = MESSAGES.quizQuestionC(a.label, a.value.toFixed(1), b.label, b.value.toFixed(1));
   }
 
-  const choosing = quizPhase === "choosing";
+  // 2026-09-05: 予想を選んだ直後（choosing→checking）でもボタンは無効化しない。
+  // 「確かめる」を押す（タイプB・C）／雲ができて答え合わせが出る（タイプA）
+  // までは選び直せるようにする（実ユーザー指摘）。ロックは lockQuizChoiceButtons()
+  // が呼ばれたタイミング（renderQuizQuestion経由ではない）で行う
+  const selectable = quizPhase !== "revealed";
   quizChoicesEl.innerHTML = quizChoiceLabels(q)
     .map((label, index) => {
       const selected = quizSelectedChoice === index;
       return `<button type="button" class="quiz-choice-button${selected ? " selected" : ""}" data-index="${index}" ${
-        choosing ? "" : "disabled"
+        selectable ? "" : "disabled"
       }>${label}</button>`;
     })
     .join("");
@@ -1137,8 +1147,17 @@ function renderQuizQuestion() {
   quizRevealEl.hidden = true;
 }
 
+// 2026-09-05: 「確かめる」を押す前（タイプB・C）／雲ができて答え合わせが出る前
+// （タイプA）であれば、予想を選び直せるようにする（実ユーザー指摘）。ロックは
+// lockQuizChoiceButtons() が担う（disabled属性を直接操作。render経由ではない）
+function lockQuizChoiceButtons() {
+  quizChoicesEl.querySelectorAll(".quiz-choice-button").forEach((button) => {
+    button.disabled = true;
+  });
+}
+
 function selectQuizChoice(index) {
-  if (quizPhase !== "choosing") return;
+  if (quizPhase === "revealed") return;
   quizSelectedChoice = index;
   quizPhase = "checking";
   const q = currentQuizQuestion();
@@ -1336,6 +1355,9 @@ function runQuizVerifyB() {
   cancelQuizAnim(); // 出題時の滑走がまだ続いていたら止める
   quizVerifyButton.hidden = true;
   quizVerifyButton.disabled = true;
+  // 「確かめる」を押した時点で選択肢を確定させる（自動再生中に選び直せても
+  // 結果に反映されず紛らわしいため。design.md参照）
+  lockQuizChoiceButtons();
   quizHintEl.textContent = "";
   // ふもとにスナップしてから上昇（滑走中に「確かめる」を押された場合の受け止め）
   currentHeight = 0;
@@ -1362,6 +1384,9 @@ function runQuizVerifyC() {
   cancelQuizAnim(); // 出題時の滑走がまだ続いていたら止める
   quizVerifyButton.hidden = true;
   quizVerifyButton.disabled = true;
+  // 「確かめる」を押した時点で選択肢を確定させる（自動再生中に選び直せても
+  // 結果に反映されず紛らわしいため。design.md参照）
+  lockQuizChoiceButtons();
   quizHintEl.textContent = "";
   resetQuizCmpLines();
   quizCmpLinesEl.setAttribute("opacity", "1");
@@ -1410,6 +1435,9 @@ function runQuizVerifyC() {
 }
 
 function pushQuizResultAndFinish(result, revealText, guessLabel) {
+  // 3タイプ共通の答え合わせ確定地点。ここで選択肢ボタンをロックする
+  // （それまでは選び直せる。design.md参照）
+  lockQuizChoiceButtons();
   quizResults.push(result);
   quizYourGuessEl.textContent = MESSAGES.quizYourGuess(guessLabel);
   quizRevealTextEl.textContent = (result.matched ? `${MESSAGES.quizRevealMatched} ` : "") + revealText;

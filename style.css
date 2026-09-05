@@ -868,21 +868,62 @@ body.quiz-mode .toolbar {
      2行に分割したことで1行あたりの文字数が減り、14pxでも収まるように
      なったため同じく14pxにする（下記・index.html参照） */
   .readout-sub,
-  .gauge-label,
-  .readout-small,
-  .held-vapor-readout {
+  .readout-small {
     font-size: 14px;
   }
 
   /* 情報パネルの注記（「※実際の高さ（m）ではありません」）は14pxだと
      元のplate幅180に収まらない（実測右端236px）ため、plateだけ広げる。
-     245pxならvaporパネル（絶対x=284開始）の手前31pxで止まり重ならない */
+     245pxならvaporパネル（絶対x=284開始）の手前31pxで止まり重ならない。
+     2026-09-05: 3行が窮屈という実機指摘を受け、高さも52→64に広げて
+     行間の余白を確保した（下記の行送り変更とセット） */
   .info-panel .panel-plate {
     width: 245px;
+    height: 64px;
   }
 
   .readout-note {
     font-size: 14px;
+  }
+
+  /* 情報パネル3行の行間・上下余白を広げる（2026-09-05・実機指摘「窮屈」）。
+     文字サイズ（14px）は変えず、y座標だけ調整する。index.htmlの並び順は
+     text:nth-of-type(1)=高さ、(2)=注記、(3)=気温（<rect>は<text>ではないので
+     nth-of-typeのカウントに影響しない）。行間はおよそ17〜18（14px文字に対し
+     行送り比1.25前後）に広げた。気温の横帯(.temp-strip-bg/-fill)も気温の
+     行に合わせて追従させる（元のy=34は気温行y=43から-9のオフセット。新しい
+     気温行y=53に合わせてy=44にする） */
+  .info-panel text:nth-of-type(1) {
+    y: 18px;
+  }
+
+  .info-panel text:nth-of-type(2) {
+    y: 35px;
+  }
+
+  .info-panel text:nth-of-type(3) {
+    y: 53px;
+  }
+
+  .temp-strip-bg,
+  .temp-strip-fill {
+    y: 44px;
+  }
+
+  /* 見出し「水蒸気の量」と値（例「少ない」「(4.8 g/m³)」）のバランス調整
+     （2026-09-05・実機指摘「値が見出しより大きく太くて不釣り合い」）。
+     従来はどちらも14pxで、値だけ太字（.held-vapor-readout。PC基準では
+     見出し10px・値8pxで差があったが、両方14pxに引き上げた際にサイズ差が
+     消え、太字の値だけが目立っていた）。見出しを一回り大きく太字にして
+     「見出し＞値」の関係を作り、値は太字を外して一段弱くする */
+  .gauge-label {
+    font-size: 16px;
+    font-weight: bold;
+  }
+
+  .held-vapor-readout {
+    font-size: 13px;
+    font-weight: normal;
   }
 
   /* マップが縮小されて2行目の補足が読めない大きさになるので、狭い画面では
