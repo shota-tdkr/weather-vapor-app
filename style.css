@@ -919,11 +919,25 @@ body.quiz-mode .toolbar {
   .gauge-label {
     font-size: 16px;
     font-weight: bold;
+    /* 2026-09-05追記: 16pxに引き上げた際、元のy=-8（10px基準）のままだと
+       文字の上端がvaporパネルのplate上端（y=-20）を超えてはみ出す実機
+       指摘があった。6px下にずらしてplate内に収める（スクリーンショットで
+       確認）。ずらした分、直下のラベル・数値の2行（.held-vapor-readout）
+       と間隔が詰まって重なって見えたため、そちらも合わせて8px下にずらし、
+       トラック開始位置（script.jsのVAPOR_TRACK_TOP）も26→34に下げて
+       間隔を確保した（下記「確認結果」参照）。CSSの`y`プロパティは
+       <text>の実際の描画位置を変えない（<rect>等の図形と異なり、
+       Chromiumがgeometry属性の`y`を優先する）ため、`transform`で見た目上の
+       位置だけ動かす */
+    transform: translateY(6px);
   }
 
   .held-vapor-readout {
     font-size: 13px;
     font-weight: normal;
+    /* 見出しを6px下げたことで間隔が詰まったため、こちらも8px下げて
+       見出しとの間隔を確保する（上記.gauge-labelのコメント参照） */
+    transform: translateY(8px);
   }
 
   /* マップが縮小されて2行目の補足が読めない大きさになるので、狭い画面では

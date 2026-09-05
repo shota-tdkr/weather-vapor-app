@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>雲のたね</title>
   <!-- ?v=N はキャッシュ対策。style.css/script.js を編集したら両方の番号を1つ上げる -->
-  <link rel="stylesheet" href="./style.css?v=61">
+  <link rel="stylesheet" href="./style.css?v=62">
 </head>
 <body>
   <h1 class="app-title">雲のたね</h1>
@@ -137,10 +137,13 @@
              分割した。dyはem単位にしてあるので、PC（既定8px）でもスマホ
              （14px、style.css参照）でも行間が字の大きさに比例して崩れない。
              見出し＋ラベル＋数値の計3行分の縦スペースを空けるため、下のトラック
-             の開始を y=26 に下げている（script.jsのVAPOR_TRACK_TOP=26と一致） -->
+             の開始を y=34 に下げている（script.jsのVAPOR_TRACK_TOP=34と一致。
+             2026-09-05: 見出しの太字16px化に伴うplate上端はみ出し修正で
+             26→34にさらに調整。style.cssの.gauge-label/.held-vapor-readout
+             のtransform参照） -->
         <text class="gauge-label" x="-6" y="-8">水蒸気の量</text>
         <text class="held-vapor-readout" x="-8" y="6"><tspan id="held-vapor-label" x="-8"></tspan><tspan id="held-vapor-value" x="-8" dy="1.15em"></tspan></text>
-        <rect class="gauge-track" x="0" y="26" width="52" height="184" />
+        <rect class="gauge-track" x="0" y="34" width="52" height="176" />
         <!-- 「もう入らない領域」= 点線（上限）より上。気温が下がると点線が降りてきて
              この斜線が上から広がる＝入る場所が減っていくことが、数字を読まなくても
              分かる。塗り(#vapor-fill)より先に描き、下に敷く（塗りと重なる部分は
@@ -258,6 +261,6 @@
     </div>
   </div>
 
-  <script src="./script.js?v=61"></script>
+  <script src="./script.js?v=62"></script>
 </body>
 </html>
