@@ -14,6 +14,8 @@ const cloudFlashEl = document.getElementById("cloud-flash");
 const cloudFlashMainEl = document.getElementById("cloud-flash-main");
 const cloudFlashSubEl = document.getElementById("cloud-flash-sub");
 const legendEl = document.getElementById("legend");
+const legendToggleButton = document.getElementById("legend-toggle");
+const legendContentEl = document.getElementById("legend-content");
 const distanceLever = document.getElementById("distance-lever");
 const distanceLeverFill = document.getElementById("distance-lever-fill");
 const distanceLeverHandle = document.getElementById("distance-lever-handle");
@@ -33,6 +35,9 @@ const LIFT_ARROW_OFFSETS = [
 const changeLogList = document.getElementById("change-log-list");
 const changeLogEl = document.getElementById("change-log");
 const mapEl = document.getElementById("map");
+// 2026-09-05: ラベルと数値を2行に分割（スマホでのフォントサイズ引き上げ時、
+// 1行のままだとvaporパネルの絶対右端が#mapのviewBox右端でクリップするため）
+const heldVaporLabelEl = document.getElementById("held-vapor-label");
 const heldVaporValueEl = document.getElementById("held-vapor-value");
 const tutorialOverlay = document.getElementById("tutorial-overlay");
 const tutorialBubble = document.getElementById("tutorial-bubble");
@@ -112,8 +117,11 @@ const MESSAGES = {
   // 実装の食い違いの是正」参照）。法則はタイプCの答え合わせと3問後のまとめで初めて明示する
   legendVaporLevel:
     "マップ下のもう1本のレバー: 水蒸気の量を4段階（少ない/やや少ない/やや多い/多い）で切り替えます。条件を変えると、雲のできる高さがどう変わるか比べてみよう。",
-  // ゲージ横の「ラベル＋数値」表示のフォーマット（例: やや多い（9.4 g/m³））
-  gaugeHeldVapor: (label, value) => `${label}（${value} g/m³）`,
+  // ゲージ横の「ラベル＋数値」表示のフォーマット（例: やや多い（9.4 g/m³））。
+  // 2026-09-05: ラベル（level.label）と数値をそれぞれ別のtspanに描くため、
+  // 数値側のかっこ書きだけメッセージ化する（ラベルは元々level.labelをそのまま
+  // 使っており、他の箇所（vaporLevelLabelEl等）と同じ扱い）
+  gaugeHeldVaporValue: (value) => `（${value} g/m³）`,
   // 凡例は増やさず、既存のゲージの説明に斜線の一句を足すだけにする（凡例の長さは
   // 画面が自分で説明できていない量の裏返しなので、行数を増やさない）
   // 点線は「上限」と呼ぶ。ここで「飽和水蒸気量」を出すと、体験の最後（3問後の
@@ -243,7 +251,7 @@ const MESSAGES = {
       return `高さ${targetHeight} / 100ではまだ雲ができません。「${label}」空気（${value} g/m³）は、もっと上げないと上限に達しません。`;
     }
     if (onsetDisplayHeight !== null && onsetDisplayHeight < targetHeight - 2) {
-      return `高さ${onsetDisplayHeight}くらいで、すでに雲ができました。「${label}」空気（${value} g/m³）は、低い高さで上限に達します。`;
+      return `高さ${onsetDisplayHeight}くらいで、すでに雲ができていました。「${label}」空気（${value} g/m³）は、低い高さで上限に達します。`;
     }
     return `高さ${targetHeight} / 100で上限に達し、水滴ができ始めます。（「${label}」空気 ${value} g/m³）`;
   },
@@ -386,9 +394,13 @@ const VAPOR_MAX = 16;
 
 // 水蒸気ゲージ（マップ内、<g transform>でオフセットするローカル座標系）のトラック寸法。
 // 上に「水蒸気の量」見出し＋段階のラベル＋数値の2行を置くため、トラックの開始を
-// 0→14 に下げた（下端は 14+196=210 で従来と同じ。index.htmlのrectと一致させること）
-const VAPOR_TRACK_TOP = 14;
-const VAPOR_TRACK_HEIGHT = 196;
+// 0→14 に下げていた（2026-08-29）。2026-09-05、スマホでのフォントサイズ引き上げ
+// （実ユーザー指摘）に伴い、ラベル・数値をさらに2行に分割したため見出し込みで
+// 計3行分の縦スペースが必要になり、14→26に再度下げた（下端は 26+184=210 で
+// 従来と同じ。index.htmlのrectと一致させること）。PC・スマホとも表示高さが
+// 196→184（約6%）縮むがユーザー承認済み
+const VAPOR_TRACK_TOP = 26;
+const VAPOR_TRACK_HEIGHT = 184;
 
 // 気温の横帯（マップ左上の情報パネル内）の幅
 const TEMP_STRIP_WIDTH = 76;
@@ -995,8 +1007,11 @@ function renderVaporLevelControl() {
   // 同じ数字を2回描かない。案1。index.htmlのコメント参照）
   vaporLevelLabelEl.textContent = level.label;
   // マップ内のゲージ横は「ラベル＋数値」でまとめて出す。「やや多い＝9.4」の
-  // 対応がここで読み取れる（お題モードで予想の根拠になる）
-  heldVaporValueEl.textContent = MESSAGES.gaugeHeldVapor(level.label, level.value.toFixed(1));
+  // 対応がここで読み取れる（お題モードで予想の根拠になる）。2026-09-05:
+  // スマホでのフォントサイズ引き上げ時に1行だと#mapの右端でクリップするため
+  // 2行（ラベル／数値）のtspanに分けた（index.html参照）
+  heldVaporLabelEl.textContent = level.label;
+  heldVaporValueEl.textContent = MESSAGES.gaugeHeldVaporValue(level.value.toFixed(1));
 }
 
 // svgX（横向きスライダーのローカルx座標）から、最も近い段階のインデックスを求める。
@@ -1596,8 +1611,8 @@ quizSummaryExitButton.textContent = MESSAGES.quizExitButtonLabel;
 quizRestartButton.textContent = MESSAGES.quizRestartButtonLabel;
 
 function renderLegend() {
-  legendEl.innerHTML = `
-    <p class="legend-title">${MESSAGES.legendTitle}</p>
+  legendToggleButton.textContent = MESSAGES.legendTitle;
+  legendContentEl.innerHTML = `
     <ul>
       <li>${MESSAGES.legendAirMass}</li>
       <li>${MESSAGES.legendMountain}</li>
@@ -1609,6 +1624,21 @@ function renderLegend() {
 }
 
 renderLegend();
+
+// 記号の説明のアコーディオン（2026-09-05・実ユーザー指摘）。初見時の情報量を
+// 減らすため初期状態は閉じる。開閉のアイコン（▶/▼）はCSSの
+// `.legend-toggle::before` を aria-expanded の値で回転させて表現する
+// （JSはhiddenとaria-expandedの2つの状態だけ管理すればよい）
+function setLegendExpanded(expanded) {
+  legendContentEl.hidden = !expanded;
+  legendToggleButton.setAttribute("aria-expanded", String(expanded));
+}
+
+legendToggleButton.addEventListener("click", () => {
+  setLegendExpanded(legendToggleButton.getAttribute("aria-expanded") !== "true");
+});
+
+setLegendExpanded(false);
 
 // キャプション・aria-labelは固定文言なので初期化時に一度だけ設定する
 distanceLeverCaptionEl.textContent = MESSAGES.leverCaptionDistance;

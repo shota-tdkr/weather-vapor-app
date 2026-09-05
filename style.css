@@ -81,6 +81,15 @@ body {
   color: #1c2541;
 }
 
+/* お題モード中は「使い方を見る」も隠す（幅を問わず。従来はスマホ幅だけで隠して
+   いた）。「お題に挑戦」と同じ「非表示」の扱いに揃えるほか、チュートリアルは
+   自由モードの操作前提で書かれており、お題中に開くとステップ3で「距離レバーを
+   動かして…」と指示しても .levers-locked（pointer-events: none）で実際には
+   動かせない、という実害があるため（2026-09-05） */
+body.quiz-mode .toolbar {
+  display: none;
+}
+
 .quiz-panel,
 .quiz-summary {
   max-width: 600px;
@@ -115,9 +124,16 @@ body {
   white-space: pre-line;
 }
 
+/* グリッドにして2択・4択どちらも均等な大きさに揃える（2026-09-05）。
+   従来は flex-wrap: wrap + flex: 1 1 auto で、ボタンの文字量に応じて幅が
+   バラバラになり（タイプBの「できる」/「まだできない」）、4択（タイプA）は
+   3個で折り返して4個目だけ単独で幅いっぱいに伸びていた（コンテンツ量に応じた
+   自動折り返しのため）。2列グリッドなら2択は1行×2列、4択は自動折り返しで
+   2行×2列になり、どちらも等幅・等サイズになる。狭い画面（下の
+   @media max-width:700px）は横一列に戻すため display:flex で上書きする */
 .quiz-choices {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
   gap: 0.5rem;
 }
 
@@ -130,7 +146,6 @@ body {
   background: #eaeaea;
   color: #1c2541;
   cursor: pointer;
-  flex: 1 1 auto;
 }
 
 .quiz-choice-button:hover:not(:disabled) {
@@ -709,9 +724,38 @@ body {
   text-align: left;
 }
 
-.legend-title {
-  margin: 0 0 0.4rem;
+/* アコーディオンの見出しボタン（2026-09-05）。初見時の情報量を減らすため
+   初期状態は閉じておく。既存の色（濃紺・地の薄グレー）以外は増やさない */
+.legend-toggle {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
   font-weight: bold;
+  color: #1c2541;
+  cursor: pointer;
+  text-align: left;
+}
+
+/* 開閉のアイコンはCSSの疑似要素（▶固定）をaria-expandedに応じて回転させる
+   だけで表現する。JS側でテキストを書き換える必要がない */
+.legend-toggle::before {
+  content: "▶";
+  display: inline-block;
+  margin-right: 0.4rem;
+  font-size: 0.75em;
+  transition: transform 0.15s ease;
+}
+
+.legend-toggle[aria-expanded="true"]::before {
+  transform: rotate(90deg);
+}
+
+.legend-content {
+  margin-top: 0.5rem;
 }
 
 .legend ul {
@@ -806,6 +850,41 @@ body {
     gap: 0.4rem;
   }
 
+  /* マップ内文字サイズの引き上げ（2026-09-05・実ユーザー指摘）。SVGはviewBoxで
+     座標系を固定しているため（CLAUDE.md参照）、フォントサイズはSVGのuser
+     unit＝#mapの表示幅に対する相対値になる。#mapは横幅100%・max-width:600px
+     なので、PC（600px幅・拡大率1.5）では読めていても、スマホ実表示幅330〜
+     350px（拡大率0.825〜0.875）だと同じuser unit値が7〜9px相当まで縮む。
+     ここでは各要素の余白（Playwright実測でオーバーフローしない上限）を
+     確認した上で14pxに統一し、実表示で11〜12px程度を確保する:
+       - .readout-sub（高さ・気温）: 情報パネルplate幅180に対し実測右端92px
+         で余裕あり
+       - .gauge-label（「水蒸気の量」見出し）: 同66px、vaporパネルplate幅
+         100に対し余裕あり
+       - .readout-small（「上限」「水滴になった量」見出し）: 実測右端が
+         plate幅100に対し93〜94pxとやや近いが収まる
+     .readout-note（注記）は情報パネルのplate幅を広げる別ルールで対応
+     （下記）。.held-vapor-readout（水蒸気量の現在値）はラベル・数値を
+     2行に分割したことで1行あたりの文字数が減り、14pxでも収まるように
+     なったため同じく14pxにする（下記・index.html参照） */
+  .readout-sub,
+  .gauge-label,
+  .readout-small,
+  .held-vapor-readout {
+    font-size: 14px;
+  }
+
+  /* 情報パネルの注記（「※実際の高さ（m）ではありません」）は14pxだと
+     元のplate幅180に収まらない（実測右端236px）ため、plateだけ広げる。
+     245pxならvaporパネル（絶対x=284開始）の手前31pxで止まり重ならない */
+  .info-panel .panel-plate {
+    width: 245px;
+  }
+
+  .readout-note {
+    font-size: 14px;
+  }
+
   /* マップが縮小されて2行目の補足が読めない大きさになるので、狭い画面では
      1行目（見た現象そのまま）だけにする */
   .cloud-flash-sub {
@@ -824,13 +903,12 @@ body {
   /* お題モード中のスマホ限定の縦詰め（design.md「お題モード」／PC表示は変えない）。
      お題パネル（219〜238px）が挿入されることでマップが押し下げられ、375×667で
      水蒸気の量ゲージ・距離レバー・水蒸気の量スライダーの読み上げが画面外に
-     出てしまうため、以下の4点で約180px回収する:
+     出てしまうため、以下の3点で約180px回収する（ツールバーの非表示は幅を問わず
+     常時適用に変更済み。上のグローバルルール参照）:
        A. サブタイトルを隠す（お題の質問文と一字一句同じ文言なので冗長）
-       B. ツールバーを隠す（「お題に挑戦」は元々hidden、「使い方を見る」はお題中不要）
        C. お題パネルの余白を圧縮
        D. 選択肢を2×2から横一列4つに（正確なg数を画面内に残すための縦の余地を作る） */
-  body.quiz-mode .app-subtitle,
-  body.quiz-mode .toolbar {
+  body.quiz-mode .app-subtitle {
     display: none;
   }
 
@@ -858,8 +936,11 @@ body {
   }
 
   /* D: 選択肢を横一列に。4つを375pxに収めるためフォントとパディングを詰める
-     （「②25くらい」程度の短い文字列なら読める前提。ユーザー承認済み） */
+     （「②25くらい」程度の短い文字列なら読める前提。ユーザー承認済み）。
+     デフォルト（PC幅）は2列グリッドに変更したため、ここで display: flex に
+     戻して横一列（2択・4択とも1行で均等割り）にする */
   .quiz-choices {
+    display: flex;
     flex-wrap: nowrap;
     gap: 0.4rem;
   }
