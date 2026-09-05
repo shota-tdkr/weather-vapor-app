@@ -887,22 +887,32 @@ body.quiz-mode .toolbar {
   }
 
   /* 情報パネル3行の行間・上下余白を広げる（2026-09-05・実機指摘「窮屈」）。
-     文字サイズ（14px）は変えず、y座標だけ調整する。index.htmlの並び順は
-     text:nth-of-type(1)=高さ、(2)=注記、(3)=気温（<rect>は<text>ではないので
-     nth-of-typeのカウントに影響しない）。行間はおよそ17〜18（14px文字に対し
-     行送り比1.25前後）に広げた。気温の横帯(.temp-strip-bg/-fill)も気温の
-     行に合わせて追従させる（元のy=34は気温行y=43から-9のオフセット。新しい
-     気温行y=53に合わせてy=44にする） */
+     文字サイズ（14px）は変えず、見た目の位置だけ下にずらす。index.htmlの
+     並び順は text:nth-of-type(1)=高さ、(2)=注記、(3)=気温（<rect>は<text>
+     ではないのでnth-of-typeのカウントに影響しない）。狙いはbaseline
+     18/35/53（元のy属性15/27/43に対しそれぞれ+3/+8/+10）で、行間はおよそ
+     17〜18（14px文字に対し行送り比1.25前後）。気温の横帯(.temp-strip-bg/
+     -fill)も気温の行に合わせて追従させる（元のy=34は気温行y=43から-9の
+     オフセット。新しい気温行53に合わせてy=44にする）。
+
+     2026-09-06追記（実機指摘・1〜2行目の重なり）: 当初ここを`y: 18px`等の
+     CSSプロパティで実装していたが、**<text>要素は<rect>と異なりCSSの`y`
+     が実際の描画に反映されず、属性の`y`（15/27/43）が優先される**ため、
+     文字サイズだけ14pxに拡大され行間（元のy属性の差=12/16）が追従せず、
+     1〜2行目が重なって表示されていた（Playwrightで`getBBox()`ではなく
+     `getBoundingClientRect()`で実描画位置を確認して発覚。前回の
+     .gauge-labelと同じ原因）。`transform: translateY()`で見た目の位置を
+     ずらす方式に修正した（ずらす量 = 目標baseline − 元のy属性） */
   .info-panel text:nth-of-type(1) {
-    y: 18px;
+    transform: translateY(3px);
   }
 
   .info-panel text:nth-of-type(2) {
-    y: 35px;
+    transform: translateY(8px);
   }
 
   .info-panel text:nth-of-type(3) {
-    y: 53px;
+    transform: translateY(10px);
   }
 
   .temp-strip-bg,
