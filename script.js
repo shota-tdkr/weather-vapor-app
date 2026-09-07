@@ -536,11 +536,12 @@ let previousHeight = 0;
 let lastCloudVisible = false;
 
 // ── 効果音（「雲ができた瞬間」だけ鳴る1音）──────────────────────────
-// 音源ファイルは持たず、Web Audio API で実行時に合成する（正弦波2音の上行）。
+// 音源ファイルは持たず、Web Audio API で実行時に合成する。澄んだベル音ではなく、
+// 雲がモクモクとわき立つイメージに寄せる（下の playCloudSound のコメント参照）。
 // 既定オフ。最初のユーザー操作で unlockAudio() が AudioContext を作る（自動再生
 // ポリシー対策。ブラウザはジェスチャーなしの音を鳴らさない。特に Safari は厳格）。
 //
-// 撤去手順: flashCloudMoment() 内の playCloudChime() の1行を消せば無音に戻る
+// 撤去手順: flashCloudMoment() 内の playCloudSound() の1行を消せば無音に戻る
 //   （トグルは残るが押しても何も鳴らない）。トグルごと消すなら、この節と
 //   soundToggleButton 周り（init）、index.html の #sound-toggle、style.css の
 //   .sound-toggle も削除する。詳細は docs/music.md。
@@ -581,32 +582,58 @@ document.addEventListener("visibilitychange", () => {
 
 // -1 で初期化する（0 だと、AudioContext 生成直後に currentTime がまだ 0 付近のとき
 // 「150ms以内」と誤判定して最初の1音が鳴らないため。currentTime は常に 0 以上）
-let lastChimeAt = -1;
+let lastCloudSoundAt = -1;
+let cloudNoiseBuffer = null; // ノイズ用バッファは一度だけ作って使い回す
 
-// 「雲ができた」チャイム: 正弦波2音の上行（E5→A5）、各約160〜180ms。クリック
-// ノイズ防止に立ち上がり5ms・指数減衰のランプをかける。マップの視覚フラッシュが
-// 主役で、音は控えめの従（ピークゲイン 0.14）
-function playCloudChime() {
+// 「雲ができた」音: モクモクと雲がわき立つイメージ。次の2層を重ねる（合計 ~0.6s）。
+//   (1) 空気・水蒸気の“ひと吹き”: ローパスを軽く開いて閉じる短いノイズ
+//   (2) わき上がる“ブルーム”: 少しデチューンした正弦波2本が G4→C5 へゆっくりグライド
+// 立ち上がりはなだらか（＝じわっとわき上がる感じ、鋭いアタックにしない）、余韻 ~0.5s。
+// マップの視覚フラッシュが主役で、音は控えめの従（ピークゲインは各層 0.05 前後）。
+function playCloudSound() {
   if (!soundOn || !audioCtx || audioCtx.state !== "running") return;
   const now = audioCtx.currentTime;
-  if (now - lastChimeAt < 0.15) return; // 直前の発火から150ms以内は鳴らさない（多重発火の保険）
-  lastChimeAt = now;
+  if (now - lastCloudSoundAt < 0.15) return; // 直前の発火から150ms以内は鳴らさない（多重発火の保険）
+  lastCloudSoundAt = now;
 
-  const tone = (freq, start, dur) => {
+  // (1) 空気のひと吹き: ローパスを開いて閉じるノイズ（モクモクの texture）
+  if (!cloudNoiseBuffer) {
+    const len = Math.floor(audioCtx.sampleRate * 0.7);
+    cloudNoiseBuffer = audioCtx.createBuffer(1, len, audioCtx.sampleRate);
+    const data = cloudNoiseBuffer.getChannelData(0);
+    for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
+  }
+  const noise = audioCtx.createBufferSource();
+  noise.buffer = cloudNoiseBuffer;
+  const noiseFilter = audioCtx.createBiquadFilter();
+  noiseFilter.type = "lowpass";
+  noiseFilter.Q.value = 0.7;
+  noiseFilter.frequency.setValueAtTime(400, now);
+  noiseFilter.frequency.linearRampToValueAtTime(1700, now + 0.22);
+  noiseFilter.frequency.linearRampToValueAtTime(700, now + 0.6);
+  const noiseGain = audioCtx.createGain();
+  noiseGain.gain.setValueAtTime(0.0001, now);
+  noiseGain.gain.linearRampToValueAtTime(0.05, now + 0.09);
+  noiseGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.55);
+  noise.connect(noiseFilter).connect(noiseGain).connect(audioCtx.destination);
+  noise.start(now);
+  noise.stop(now + 0.7);
+
+  // (2) わき上がるブルーム: デチューンした正弦2本を G4(392Hz)→C5(約523Hz)へグライド。
+  //     4Hz差のうなりがゆっくりした揺らぎ＝モクモク感になる
+  [392, 396].forEach((freq) => {
     const osc = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
     osc.type = "sine";
-    osc.frequency.value = freq;
-    gain.gain.setValueAtTime(0.0001, start);
-    gain.gain.exponentialRampToValueAtTime(0.14, start + 0.005);
-    gain.gain.exponentialRampToValueAtTime(0.0001, start + dur);
+    osc.frequency.setValueAtTime(freq, now);
+    osc.frequency.linearRampToValueAtTime(freq * 1.335, now + 0.38);
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.linearRampToValueAtTime(0.045, now + 0.06);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.5);
     osc.connect(gain).connect(audioCtx.destination);
-    osc.start(start);
-    osc.stop(start + dur + 0.02);
-  };
-
-  tone(659.25, now, 0.16);       // E5
-  tone(880.0, now + 0.11, 0.18); // A5
+    osc.start(now);
+    osc.stop(now + 0.55);
+  });
 }
 
 // 雲ができた瞬間の演出。マップ上に一行を数秒だけ出し、雲を軽く弾ませる。
@@ -615,7 +642,7 @@ const CLOUD_FLASH_DURATION = 2500; // ms
 let cloudFlashTimer = null;
 
 function flashCloudMoment() {
-  playCloudChime(); // 効果音（撤去はこの1行を消すだけ。docs/music.md 参照）
+  playCloudSound(); // 効果音（撤去はこの1行を消すだけ。docs/music.md 参照）
   cloudFlashEl.setAttribute("opacity", "1");
   if (cloudFlashTimer) clearTimeout(cloudFlashTimer);
   cloudFlashTimer = setTimeout(() => {
