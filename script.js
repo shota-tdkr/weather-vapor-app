@@ -536,16 +536,17 @@ let previousHeight = 0;
 let lastCloudVisible = false;
 
 // ── 効果音（「雲ができた瞬間」だけ鳴る1音）──────────────────────────
-// 音源ファイルは持たず、Web Audio API で実行時に合成する。澄んだベル音ではなく、
-// 雲がモクモクとわき立つイメージに寄せる（下の playCloudSound のコメント参照）。
-// 既定オフ。最初のユーザー操作で unlockAudio() が AudioContext を作る（自動再生
-// ポリシー対策。ブラウザはジェスチャーなしの音を鳴らさない。特に Safari は厳格）。
+// 音源は sfx/cloud-form.mp3（OtoLogic「Fantasize071ShortLow」/ CC BY 4.0。クレジットは
+// README・作品概要に記載）。index.html の <audio id="cloud-sound"> を鳴らすだけ。
+// 既定オフ。最初のユーザー操作で unlockAudio() が一度だけ無音再生して要素を「解禁」する
+// （自動再生ポリシー対策。ジェスチャーなしの play() はブロックされる。特に Safari は厳格）。
 //
 // 撤去手順: flashCloudMoment() 内の playCloudSound() の1行を消せば無音に戻る
 //   （トグルは残るが押しても何も鳴らない）。トグルごと消すなら、この節と
-//   soundToggleButton 周り（init）、index.html の #sound-toggle、style.css の
-//   .sound-toggle も削除する。詳細は docs/music.md。
+//   soundToggleButton 周り（init）、index.html の #sound-toggle / <audio id="cloud-sound">、
+//   style.css の .sound-toggle、sfx/cloud-form.mp3 も削除する。詳細は docs/music.md。
 const SOUND_STORAGE_KEY = "weather-app-sound";
+const cloudSoundEl = document.getElementById("cloud-sound");
 
 let soundOn = false;
 try {
@@ -554,86 +555,46 @@ try {
   soundOn = false; // localStorage が使えない環境では音なし扱い
 }
 
-let audioCtx = null;
+let audioUnlocked = false;
 
-// 最初のユーザージェスチャーで一度だけ実質的に効く。AudioContext は suspended で
-// 生成されるため、ジェスチャー内で resume() しないと以後 play できない
+// 最初のユーザージェスチャーで一度だけ実質的に効く。<audio> は「一度でもジェスチャー内で
+// play() されれば、以後スクリプトから play() できる」ので、無音（先頭・即 pause）で解禁する
 function unlockAudio() {
-  if (audioCtx) {
-    if (audioCtx.state === "suspended") audioCtx.resume().catch(() => {});
-    return;
-  }
+  if (audioUnlocked || !cloudSoundEl) return;
+  audioUnlocked = true;
   try {
-    const Ctx = window.AudioContext || window.webkitAudioContext;
-    if (!Ctx) return; // Web Audio 非対応環境では黙って音なし
-    audioCtx = new Ctx();
-    if (audioCtx.state === "suspended") audioCtx.resume().catch(() => {});
+    const p = cloudSoundEl.play();
+    if (p && typeof p.then === "function") {
+      p.then(() => {
+        cloudSoundEl.pause();
+        cloudSoundEl.currentTime = 0;
+      }).catch(() => {}); // まだブロックされていても本体は止めない（次のジェスチャーで再試行はしない）
+    } else {
+      cloudSoundEl.pause();
+      cloudSoundEl.currentTime = 0;
+    }
   } catch (error) {
-    audioCtx = null; // 生成に失敗しても本体の動作は止めない
+    // 何もしない（音が出ないだけ）
   }
 }
 
-// タブ復帰時に suspend されていることがある（Safari）ので resume を試す
-document.addEventListener("visibilitychange", () => {
-  if (!document.hidden && audioCtx && audioCtx.state === "suspended") {
-    audioCtx.resume().catch(() => {});
-  }
-});
-
-// -1 で初期化する（0 だと、AudioContext 生成直後に currentTime がまだ 0 付近のとき
-// 「150ms以内」と誤判定して最初の1音が鳴らないため。currentTime は常に 0 以上）
+// 直前の発火時刻（performance.now() ミリ秒）。多重発火の保険。
 let lastCloudSoundAt = -1;
-let cloudNoiseBuffer = null; // ノイズ用バッファは一度だけ作って使い回す
 
-// 「雲ができた」音: モクモクと雲がわき立つイメージ。次の2層を重ねる（合計 ~0.6s）。
-//   (1) 空気・水蒸気の“ひと吹き”: ローパスを軽く開いて閉じる短いノイズ
-//   (2) わき上がる“ブルーム”: 少しデチューンした正弦波2本が G4→C5 へゆっくりグライド
-// 立ち上がりはなだらか（＝じわっとわき上がる感じ、鋭いアタックにしない）、余韻 ~0.5s。
-// マップの視覚フラッシュが主役で、音は控えめの従（ピークゲインは各層 0.05 前後）。
+// 「雲ができた」音を頭から鳴らす。ミュート中は鳴らさない。既に鳴っている場合は
+// 頭に戻して鳴らし直す（雲ができ直したことの合図としてそれで良い）。
 function playCloudSound() {
-  if (!soundOn || !audioCtx || audioCtx.state !== "running") return;
-  const now = audioCtx.currentTime;
-  if (now - lastCloudSoundAt < 0.15) return; // 直前の発火から150ms以内は鳴らさない（多重発火の保険）
+  if (!soundOn || !cloudSoundEl) return;
+  const now = performance.now();
+  if (now - lastCloudSoundAt < 150) return; // 直前の発火から150ms以内は鳴らさない（多重発火の保険）
   lastCloudSoundAt = now;
-
-  // (1) 空気のひと吹き: ローパスを開いて閉じるノイズ（モクモクの texture）
-  if (!cloudNoiseBuffer) {
-    const len = Math.floor(audioCtx.sampleRate * 0.7);
-    cloudNoiseBuffer = audioCtx.createBuffer(1, len, audioCtx.sampleRate);
-    const data = cloudNoiseBuffer.getChannelData(0);
-    for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
+  try {
+    cloudSoundEl.currentTime = 0;
+    const p = cloudSoundEl.play();
+    if (p && typeof p.catch === "function") p.catch(() => {}); // ブロックされても例外で止めない
+  } catch (error) {
+    // 何もしない
   }
-  const noise = audioCtx.createBufferSource();
-  noise.buffer = cloudNoiseBuffer;
-  const noiseFilter = audioCtx.createBiquadFilter();
-  noiseFilter.type = "lowpass";
-  noiseFilter.Q.value = 0.7;
-  noiseFilter.frequency.setValueAtTime(400, now);
-  noiseFilter.frequency.linearRampToValueAtTime(1700, now + 0.22);
-  noiseFilter.frequency.linearRampToValueAtTime(700, now + 0.6);
-  const noiseGain = audioCtx.createGain();
-  noiseGain.gain.setValueAtTime(0.0001, now);
-  noiseGain.gain.linearRampToValueAtTime(0.05, now + 0.09);
-  noiseGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.55);
-  noise.connect(noiseFilter).connect(noiseGain).connect(audioCtx.destination);
-  noise.start(now);
-  noise.stop(now + 0.7);
-
-  // (2) わき上がるブルーム: デチューンした正弦2本を G4(392Hz)→C5(約523Hz)へグライド。
-  //     4Hz差のうなりがゆっくりした揺らぎ＝モクモク感になる
-  [392, 396].forEach((freq) => {
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-    osc.type = "sine";
-    osc.frequency.setValueAtTime(freq, now);
-    osc.frequency.linearRampToValueAtTime(freq * 1.335, now + 0.38);
-    gain.gain.setValueAtTime(0.0001, now);
-    gain.gain.linearRampToValueAtTime(0.045, now + 0.06);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.5);
-    osc.connect(gain).connect(audioCtx.destination);
-    osc.start(now);
-    osc.stop(now + 0.55);
-  });
 }
 
 // 雲ができた瞬間の演出。マップ上に一行を数秒だけ出し、雲を軽く弾ませる。
@@ -1797,6 +1758,9 @@ cloudFlashSubEl.textContent = MESSAGES.cloudFlashSub;
 // 上部の「効果音」節で定義済み。docs/music.md 参照
 const soundToggleButton = document.getElementById("sound-toggle");
 soundToggleButton.setAttribute("aria-label", MESSAGES.soundToggleAria);
+// マップの視覚フラッシュが主役で音は控えめの従。PC ではこの値で少し下げる
+// （iOS Safari は .volume を無視して素材そのままの音量で鳴るが、素材が元々控えめ）
+if (cloudSoundEl) cloudSoundEl.volume = 0.7;
 function renderSoundToggle() {
   soundToggleButton.textContent = soundOn ? MESSAGES.soundStateOn : MESSAGES.soundStateOff;
   soundToggleButton.setAttribute("aria-pressed", String(soundOn));

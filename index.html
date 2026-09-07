@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>雲のたね</title>
   <!-- ?v=N はキャッシュ対策。style.css/script.js を編集したら両方の番号を1つ上げる -->
-  <link rel="stylesheet" href="./style.css?v=65">
+  <link rel="stylesheet" href="./style.css?v=66">
 </head>
 <body>
   <h1 class="app-title">雲のたね</h1>
@@ -17,6 +17,10 @@
        スマホでも消えないよう .toolbar の外に置く（枠線のみ・濃紺、新色は増やさない）。
        詳細は docs/music.md -->
   <button id="sound-toggle" class="sound-toggle" type="button"></button>
+  <!-- 「雲ができた瞬間」の効果音。音源: OtoLogic「Fantasize071ShortLow」(CC BY 4.0)。
+       クレジットは README・作品概要に記載。既定オフ、鳴らすのは script.js の
+       playCloudSound()（flashCloudMoment 内の1行）だけ -->
+  <audio id="cloud-sound" src="./sfx/cloud-form.mp3" preload="auto"></audio>
   <!-- 「お題に挑戦」がこのアプリの主要体験なので、先頭＋塗りつぶし（既存の濃紺）。
        「使い方を見る」は補助なので枠線のみ -->
   <div class="toolbar">
@@ -265,6 +269,6 @@
     </div>
   </div>
 
-  <script src="./script.js?v=65"></script>
+  <script src="./script.js?v=66"></script>
 </body>
 </html>
