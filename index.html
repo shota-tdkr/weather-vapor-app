@@ -6,7 +6,7 @@
   <title>雲のたね</title>
   <!-- ?v=N はキャッシュ対策。style.css / script.js / sfx/cloud-form.mp3 を編集したら
        3箇所とも番号を1つ上げる -->
-  <link rel="stylesheet" href="./style.css?v=67">
+  <link rel="stylesheet" href="./style.css?v=68">
 </head>
 <body>
   <h1 class="app-title">雲のたね</h1>
@@ -14,14 +14,26 @@
        旧「この空気は…だろう？」の問いかけはここでは不要になった）。お題モード中は
        スマホで非表示になる（style.css の body.quiz-mode 参照） -->
   <p class="app-subtitle">予想して、空気を山に近づけて、雲ができる瞬間を見つけよう！</p>
-  <!-- 効果音（「雲ができた瞬間」だけ鳴る1音）のオン・オフ。既定オフ。お題モード中・
-       スマホでも消えないよう .toolbar の外に置く（枠線のみ・濃紺、新色は増やさない）。
+  <!-- 効果音（「雲ができた瞬間」だけ鳴る1音）のオン・オフ。既定オン。お題モード中・
+       スマホでも消えないよう .toolbar の外に置く。アイコンのみ（枠線＋濃紺 #1c2541、
+       新色なし）。状態は .muted クラスで波／× を出し分け（script.js renderSoundToggle）。
        詳細は docs/music.md -->
-  <button id="sound-toggle" class="sound-toggle" type="button"></button>
+  <button id="sound-toggle" class="sound-toggle" type="button" aria-pressed="true">
+    <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false">
+      <path class="spk" d="M3 9 h4 l4 -3.5 v13 l-4 -3.5 h-4 z" />
+      <g class="waves">
+        <path d="M14 9 a4 4 0 0 1 0 6" />
+        <path d="M16.5 6.5 a7.5 7.5 0 0 1 0 11" />
+      </g>
+      <g class="mute-x">
+        <path d="M14.5 9.5 l4.5 4.5 M19 9.5 l-4.5 4.5" />
+      </g>
+    </svg>
+  </button>
   <!-- 「雲ができた瞬間」の効果音。音源: OtoLogic「Fantasize071ShortLow」(CC BY 4.0)。
-       クレジットは README・作品概要に記載。既定オフ、鳴らすのは script.js の
+       クレジットは README・作品概要に記載。既定オン、鳴らすのは script.js の
        playCloudSound()（flashCloudMoment 内の1行）だけ -->
-  <audio id="cloud-sound" src="./sfx/cloud-form.mp3?v=67" preload="auto"></audio>
+  <audio id="cloud-sound" src="./sfx/cloud-form.mp3?v=68" preload="auto"></audio>
   <!-- 「お題に挑戦」がこのアプリの主要体験なので、先頭＋塗りつぶし（既存の濃紺）。
        「使い方を見る」は補助なので枠線のみ -->
   <div class="toolbar">
@@ -270,6 +282,6 @@
     </div>
   </div>
 
-  <script src="./script.js?v=67"></script>
+  <script src="./script.js?v=68"></script>
 </body>
 </html>

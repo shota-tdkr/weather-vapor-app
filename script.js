@@ -284,11 +284,11 @@ const MESSAGES = {
   quizSummaryTerm:
     "アプリで見てきた「上限」を、理科では「飽和水蒸気量」といいます。テストや授業でこの言葉が出てきたら、上限の点線を思い出そう。",
   quizRestartButtonLabel: "もう一度挑戦する",
-  // 効果音（「雲ができた瞬間」だけ鳴る1音）のオン・オフ。既定オフ。ボタンは
-  // 現在の状態を表示する（「音: オフ」＝今は鳴らない）。design.md「引き算」の
-  // 方針に合わせ、音は操作の結果として一瞬鳴る範囲だけ。詳細は docs/music.md
-  soundStateOn: "音: オン",
-  soundStateOff: "音: オフ",
+  // 効果音（「雲ができた瞬間」だけ鳴る1音）のオン・オフ。既定オン。ボタンは
+  // スピーカーアイコンで、状態はアイコン（波／×）と aria-pressed・title で示す。
+  // design.md「引き算」の方針に合わせ、音は操作の結果として一瞬鳴る範囲だけ。詳細は docs/music.md
+  soundStateOn: "オン",
+  soundStateOff: "オフ",
   soundToggleAria: "効果音のオン・オフ",
 };
 
@@ -548,11 +548,12 @@ let lastCloudVisible = false;
 const SOUND_STORAGE_KEY = "weather-app-sound";
 const cloudSoundEl = document.getElementById("cloud-sound");
 
-let soundOn = false;
+// 既定オン。保存値が明示的に "off" のときだけオフにする（初回訪問・保存値なしは "on" 扱い）
+let soundOn = true;
 try {
-  soundOn = localStorage.getItem(SOUND_STORAGE_KEY) === "on";
+  soundOn = localStorage.getItem(SOUND_STORAGE_KEY) !== "off";
 } catch (error) {
-  soundOn = false; // localStorage が使えない環境では音なし扱い
+  soundOn = true; // localStorage が使えない環境でも既定オン
 }
 
 let audioUnlocked = false;
@@ -1753,7 +1754,7 @@ cloudFlashMainEl.textContent = MESSAGES.cloudFlash;
 cloudFlashSubEl.textContent = MESSAGES.cloudFlashSub;
 // 高さの目安はお題の問題ごとに renderQuizHeightGuide(values) で作り直す（init不要）
 
-// 効果音のオン・オフ（h1／サブタイトル付近の常時表示ボタン）。既定オフ、状態は
+// 効果音のオン・オフ（h1／サブタイトル付近の常時表示ボタン）。既定オン、状態は
 // localStorage（weather-app-sound）に保存。SOUND_STORAGE_KEY / soundOn / unlockAudio は
 // 上部の「効果音」節で定義済み。docs/music.md 参照
 const soundToggleButton = document.getElementById("sound-toggle");
@@ -1761,9 +1762,12 @@ soundToggleButton.setAttribute("aria-label", MESSAGES.soundToggleAria);
 // マップの視覚フラッシュが主役で音は控えめの従。PC ではこの値で少し下げる
 // （iOS Safari は .volume を無視して素材そのままの音量で鳴るが、素材が元々控えめ）
 if (cloudSoundEl) cloudSoundEl.volume = 0.7;
+// ボタンはアイコン固定（index.html の <svg>）。JS は muted クラス／aria-pressed／
+// title を切り替えるだけ（アイコンの波・× の出し分けは CSS が .muted を見て行う）
 function renderSoundToggle() {
-  soundToggleButton.textContent = soundOn ? MESSAGES.soundStateOn : MESSAGES.soundStateOff;
+  soundToggleButton.classList.toggle("muted", !soundOn);
   soundToggleButton.setAttribute("aria-pressed", String(soundOn));
+  soundToggleButton.title = `効果音: ${soundOn ? MESSAGES.soundStateOn : MESSAGES.soundStateOff}`;
 }
 soundToggleButton.addEventListener("click", () => {
   unlockAudio(); // トグルもジェスチャー。ここで用意すれば「オン」にした直後から鳴る
