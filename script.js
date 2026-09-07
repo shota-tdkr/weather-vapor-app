@@ -284,6 +284,12 @@ const MESSAGES = {
   quizSummaryTerm:
     "アプリで見てきた「上限」を、理科では「飽和水蒸気量」といいます。テストや授業でこの言葉が出てきたら、上限の点線を思い出そう。",
   quizRestartButtonLabel: "もう一度挑戦する",
+  // 効果音（「雲ができた瞬間」だけ鳴る1音）のオン・オフ。既定オフ。ボタンは
+  // 現在の状態を表示する（「音: オフ」＝今は鳴らない）。design.md「引き算」の
+  // 方針に合わせ、音は操作の結果として一瞬鳴る範囲だけ。詳細は docs/music.md
+  soundStateOn: "音: オン",
+  soundStateOff: "音: オフ",
+  soundToggleAria: "効果音のオン・オフ",
 };
 
 // 気温(℃)と飽和水蒸気量(g/m³)の対応表（教科書の値と照合済み）
@@ -529,12 +535,87 @@ let previousHeight = 0;
 // updateGauges()の外から参照する（maybeRevealQuizAnswer()参照）
 let lastCloudVisible = false;
 
+// ── 効果音（「雲ができた瞬間」だけ鳴る1音）──────────────────────────
+// 音源ファイルは持たず、Web Audio API で実行時に合成する（正弦波2音の上行）。
+// 既定オフ。最初のユーザー操作で unlockAudio() が AudioContext を作る（自動再生
+// ポリシー対策。ブラウザはジェスチャーなしの音を鳴らさない。特に Safari は厳格）。
+//
+// 撤去手順: flashCloudMoment() 内の playCloudChime() の1行を消せば無音に戻る
+//   （トグルは残るが押しても何も鳴らない）。トグルごと消すなら、この節と
+//   soundToggleButton 周り（init）、index.html の #sound-toggle、style.css の
+//   .sound-toggle も削除する。詳細は docs/music.md。
+const SOUND_STORAGE_KEY = "weather-app-sound";
+
+let soundOn = false;
+try {
+  soundOn = localStorage.getItem(SOUND_STORAGE_KEY) === "on";
+} catch (error) {
+  soundOn = false; // localStorage が使えない環境では音なし扱い
+}
+
+let audioCtx = null;
+
+// 最初のユーザージェスチャーで一度だけ実質的に効く。AudioContext は suspended で
+// 生成されるため、ジェスチャー内で resume() しないと以後 play できない
+function unlockAudio() {
+  if (audioCtx) {
+    if (audioCtx.state === "suspended") audioCtx.resume().catch(() => {});
+    return;
+  }
+  try {
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return; // Web Audio 非対応環境では黙って音なし
+    audioCtx = new Ctx();
+    if (audioCtx.state === "suspended") audioCtx.resume().catch(() => {});
+  } catch (error) {
+    audioCtx = null; // 生成に失敗しても本体の動作は止めない
+  }
+}
+
+// タブ復帰時に suspend されていることがある（Safari）ので resume を試す
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden && audioCtx && audioCtx.state === "suspended") {
+    audioCtx.resume().catch(() => {});
+  }
+});
+
+// -1 で初期化する（0 だと、AudioContext 生成直後に currentTime がまだ 0 付近のとき
+// 「150ms以内」と誤判定して最初の1音が鳴らないため。currentTime は常に 0 以上）
+let lastChimeAt = -1;
+
+// 「雲ができた」チャイム: 正弦波2音の上行（E5→A5）、各約160〜180ms。クリック
+// ノイズ防止に立ち上がり5ms・指数減衰のランプをかける。マップの視覚フラッシュが
+// 主役で、音は控えめの従（ピークゲイン 0.14）
+function playCloudChime() {
+  if (!soundOn || !audioCtx || audioCtx.state !== "running") return;
+  const now = audioCtx.currentTime;
+  if (now - lastChimeAt < 0.15) return; // 直前の発火から150ms以内は鳴らさない（多重発火の保険）
+  lastChimeAt = now;
+
+  const tone = (freq, start, dur) => {
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = "sine";
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(0.0001, start);
+    gain.gain.exponentialRampToValueAtTime(0.14, start + 0.005);
+    gain.gain.exponentialRampToValueAtTime(0.0001, start + dur);
+    osc.connect(gain).connect(audioCtx.destination);
+    osc.start(start);
+    osc.stop(start + dur + 0.02);
+  };
+
+  tone(659.25, now, 0.16);       // E5
+  tone(880.0, now + 0.11, 0.18); // A5
+}
+
 // 雲ができた瞬間の演出。マップ上に一行を数秒だけ出し、雲を軽く弾ませる。
 // あふれが0→0より大きくなった瞬間だけ呼ぶ（既に雲が出ている間の増減では呼ばない）
 const CLOUD_FLASH_DURATION = 2500; // ms
 let cloudFlashTimer = null;
 
 function flashCloudMoment() {
+  playCloudChime(); // 効果音（撤去はこの1行を消すだけ。docs/music.md 参照）
   cloudFlashEl.setAttribute("opacity", "1");
   if (cloudFlashTimer) clearTimeout(cloudFlashTimer);
   cloudFlashTimer = setTimeout(() => {
@@ -956,6 +1037,7 @@ function toSvgPoint(svgEl, clientX, clientY) {
 // x座標を渡す
 function bindLeverDrag(leverEl, { onStart, onMove, onEnd }) {
   leverEl.addEventListener("pointerdown", (event) => {
+    unlockAudio(); // 最初のレバー操作で効果音を解禁（自動再生ポリシー対策。docs/music.md）
     leverEl.setPointerCapture(event.pointerId);
     const svgPoint = toSvgPoint(leverEl, event.clientX, event.clientY);
     onStart(svgPoint.x);
@@ -1178,6 +1260,7 @@ quizChoicesEl.addEventListener("click", (event) => {
 });
 
 quizVerifyButton.addEventListener("click", () => {
+  unlockAudio(); // 「確かめる」→自動再生でも「雲ができた」音が鳴るように（docs/music.md）
   const q = currentQuizQuestion();
   if (q.type === "B") runQuizVerifyB();
   else if (q.type === "C") runQuizVerifyC();
@@ -1539,6 +1622,7 @@ function startQuizQuestion() {
 }
 
 function startQuiz() {
+  unlockAudio(); // 「お題に挑戦」も最初のジェスチャーになりうる（docs/music.md）
   quizActive = true;
   quizQuestions = buildQuizQuestions();
   quizQuestionIndex = 0;
@@ -1681,6 +1765,27 @@ cloudFlashMainEl.textContent = MESSAGES.cloudFlash;
 cloudFlashSubEl.textContent = MESSAGES.cloudFlashSub;
 // 高さの目安はお題の問題ごとに renderQuizHeightGuide(values) で作り直す（init不要）
 
+// 効果音のオン・オフ（h1／サブタイトル付近の常時表示ボタン）。既定オフ、状態は
+// localStorage（weather-app-sound）に保存。SOUND_STORAGE_KEY / soundOn / unlockAudio は
+// 上部の「効果音」節で定義済み。docs/music.md 参照
+const soundToggleButton = document.getElementById("sound-toggle");
+soundToggleButton.setAttribute("aria-label", MESSAGES.soundToggleAria);
+function renderSoundToggle() {
+  soundToggleButton.textContent = soundOn ? MESSAGES.soundStateOn : MESSAGES.soundStateOff;
+  soundToggleButton.setAttribute("aria-pressed", String(soundOn));
+}
+soundToggleButton.addEventListener("click", () => {
+  unlockAudio(); // トグルもジェスチャー。ここで用意すれば「オン」にした直後から鳴る
+  soundOn = !soundOn;
+  try {
+    localStorage.setItem(SOUND_STORAGE_KEY, soundOn ? "on" : "off");
+  } catch (error) {
+    // 保存できなくても、このセッション内ではトグルは効く
+  }
+  renderSoundToggle();
+});
+renderSoundToggle();
+
 positionAirMass(currentDistance);
 renderVaporLevelControl();
 updateGauges(currentHeight);
@@ -1762,6 +1867,7 @@ function startTutorial() {
 }
 
 tutorialNextButton.addEventListener("click", () => {
+  unlockAudio(); // チュートリアルの「次へ／はじめる」も最初のジェスチャーになりうる（docs/music.md）
   tutorialStepIndex += 1;
   if (tutorialStepIndex >= TUTORIAL_STEPS.length) {
     endTutorial();
@@ -1770,8 +1876,14 @@ tutorialNextButton.addEventListener("click", () => {
   }
 });
 
-tutorialSkipButton.addEventListener("click", endTutorial);
-tutorialReplayButton.addEventListener("click", startTutorial);
+tutorialSkipButton.addEventListener("click", () => {
+  unlockAudio();
+  endTutorial();
+});
+tutorialReplayButton.addEventListener("click", () => {
+  unlockAudio();
+  startTutorial();
+});
 tutorialReplayButton.textContent = MESSAGES.tutorialReplay;
 
 window.addEventListener("resize", () => {

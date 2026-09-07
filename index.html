@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>雲のたね</title>
   <!-- ?v=N はキャッシュ対策。style.css/script.js を編集したら両方の番号を1つ上げる -->
-  <link rel="stylesheet" href="./style.css?v=63">
+  <link rel="stylesheet" href="./style.css?v=64">
 </head>
 <body>
   <h1 class="app-title">雲のたね</h1>
@@ -13,6 +13,10 @@
        旧「この空気は…だろう？」の問いかけはここでは不要になった）。お題モード中は
        スマホで非表示になる（style.css の body.quiz-mode 参照） -->
   <p class="app-subtitle">予想して、空気を山に近づけて、雲ができる瞬間を見つけよう！</p>
+  <!-- 効果音（「雲ができた瞬間」だけ鳴る1音）のオン・オフ。既定オフ。お題モード中・
+       スマホでも消えないよう .toolbar の外に置く（枠線のみ・濃紺、新色は増やさない）。
+       詳細は docs/music.md -->
+  <button id="sound-toggle" class="sound-toggle" type="button"></button>
   <!-- 「お題に挑戦」がこのアプリの主要体験なので、先頭＋塗りつぶし（既存の濃紺）。
        「使い方を見る」は補助なので枠線のみ -->
   <div class="toolbar">
@@ -261,6 +265,6 @@
     </div>
   </div>
 
-  <script src="./script.js?v=63"></script>
+  <script src="./script.js?v=64"></script>
 </body>
 </html>
