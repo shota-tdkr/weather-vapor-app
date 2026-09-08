@@ -1535,11 +1535,36 @@ function pushQuizResultAndFinish(result, revealText, guessLabel) {
   quizRevealEl.hidden = false;
 }
 
+// その水蒸気量の空気が「雲ができ始める内部高さ」をモデルから直接求める（タイプA専用）。
+// あふれ = heldVapor - saturationVaporAmount(INITIAL_TEMP - LAPSE_RATE*h) が正になる最小の h。
+// saturationVaporAmount は温度について単調増加、温度は h について単調減少なので、
+// 「あふれるか」は h について単調 → 二分探索で厳密に求まる。
+//
+// タイプA の答え合わせは以前「距離レバーを動かして雲を検知したフレームの currentHeight」
+// を実際の高さに使っていたが、1フレームの移動量に上限がないため、速く動かす／描画が
+// 重い端末では発生境界を飛び越え、同じ問題・同じ予想でも判定が変わる不具合があった。
+// レバー操作は観察用に残し、採点はこの関数の値（＝速度に依存しない）で行う。
+// タイプB/C は制御された自動再生（animateHeightTo）を使うため対象外（このコードも不使用）。
+function cloudOnsetInternalHeight(heldVapor) {
+  let lo = 0;
+  let hi = MOUNTAIN_MAX_HEIGHT;
+  for (let i = 0; i < 40; i++) {
+    const mid = (lo + hi) / 2;
+    if (heldVapor - saturationVaporAmount(INITIAL_TEMP - LAPSE_RATE * mid) > 0) hi = mid;
+    else lo = mid;
+  }
+  return hi;
+}
+
 function revealQuizAnswer() {
   quizPhase = "revealed";
   const question = currentQuizQuestion();
   const level = VAPOR_LEVELS[question.vaporLevelIndex];
-  const measuredHeight = Math.round((currentHeight / MOUNTAIN_MAX_HEIGHT) * HEIGHT_DISPLAY_SCALE);
+  // 手動ドラッグで検知した位置ではなく、モデルから解析的に求めた発生境界を使う
+  // （レバー速度に依存しない。上の cloudOnsetInternalHeight のコメント参照）
+  const measuredHeight = Math.round(
+    (cloudOnsetInternalHeight(level.value) / MOUNTAIN_MAX_HEIGHT) * HEIGHT_DISPLAY_SCALE
+  );
   // 選択肢は「◯◯くらい」という近似値なので、実測値に最も近い選択肢を「実際」とする。
   // 生徒に見せる数値（解説・まとめ表）は必ずこの選択肢の値に揃える（実測9でも10と表示）
   const nearestChoiceIndex = QUIZ_CHOICES.reduce(
