@@ -406,11 +406,25 @@ const VAPOR_MAX = 16;
 // 計3行分の縦スペースが必要になり、14→26に再度下げた。同日中、見出しが太字
 // 16pxになったことでplate上端とはみ出す不具合が見つかり、見出し・ラベル/数値行を
 // transformでずらした分の間隔を確保するため、26→34にさらに下げた（下端は
-// 34+176=210 で従来と同じ。index.htmlのrectと一致させること）。PC・スマホとも
-// 表示高さが 196→176（約10%）縮むがユーザー承認済み（元は約6%縮む案を承認済み。
-// 今回の追加分は見出しの重なり修正に伴う副次的な調整）
-const VAPOR_TRACK_TOP = 34;
-const VAPOR_TRACK_HEIGHT = 176;
+// 34+176=210 で従来と同じ）。
+//
+// 2026-09-08: それでもスマホは見出し（3行、PCより大きい）とトラックの間が詰まり
+// すぎていた（実機指摘「上に詰めすぎ」）。**スマホだけ**トラックを 46/168 に
+// （下げて少し縮めて）、白枠の中で上下が均等に近づくようにする。塗り・点線・斜線は
+// この2値を基準に置いているので、幅で値を切り替え、.gauge-track の rect 属性も
+// 一緒に書き換える（syncVaporTrackGeometry。init と resize で呼ぶ）。PCは 34/176 のまま。
+let VAPOR_TRACK_TOP = 34;
+let VAPOR_TRACK_HEIGHT = 176;
+function syncVaporTrackGeometry() {
+  const narrow = window.matchMedia("(max-width: 700px)").matches;
+  VAPOR_TRACK_TOP = narrow ? 46 : 34;
+  VAPOR_TRACK_HEIGHT = narrow ? 168 : 176; // 下端 46+168=214 ≒ 34+176=210（「水滴になった量」との間隔はほぼ不変）
+  const rect = document.querySelector(".vapor-panel .gauge-track");
+  if (rect) {
+    rect.setAttribute("y", VAPOR_TRACK_TOP);
+    rect.setAttribute("height", VAPOR_TRACK_HEIGHT);
+  }
+}
 
 // 気温の横帯（マップ左上の情報パネル内）の幅
 const TEMP_STRIP_WIDTH = 76;
@@ -1781,6 +1795,7 @@ soundToggleButton.addEventListener("click", () => {
 });
 renderSoundToggle();
 
+syncVaporTrackGeometry(); // スマホ用の .gauge-track 上書きを塗り・点線に反映（updateGauges の前に）
 positionAirMass(currentDistance);
 renderVaporLevelControl();
 updateGauges(currentHeight);
@@ -1885,6 +1900,10 @@ window.addEventListener("resize", () => {
   if (!tutorialOverlay.hidden) {
     positionTutorialBubble(TUTORIAL_STEPS[tutorialStepIndex].target);
   }
+  // 幅が 700px 境界をまたぐとトラック寸法（PC/スマホ）が変わるので取り直して塗り直す
+  syncVaporTrackGeometry();
+  updateGauges(currentHeight);
+  renderVaporLevelControl();
 });
 
 let tutorialAlreadySeen = false;
