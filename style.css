@@ -47,12 +47,15 @@ body {
 
 /* 効果音のオン・オフ。ツールバー内、「使い方を見る」の隣。既存の枠線ボタン
    （tutorial-replay）と同じ見た目＝新しい配色は増やさない。主要ボタン
-   （お題に挑戦）と競合しないよう一段控えめ（アイコンのみ・淡め） */
+   （お題に挑戦）と競合しないよう一段控えめ（アイコンのみ・淡め）。
+   縦サイズは align-self: stretch で「お題に挑戦」「使い方を見る」と同じ高さに
+   揃える（縦 padding は持たせず、隣のボタンの高さに追従させる）。 */
 .sound-toggle {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0.4rem;
+  align-self: stretch;
+  padding: 0 0.5rem;
   margin: 0;
   border: 1px solid #1c2541;
   border-radius: 6px;
@@ -61,6 +64,12 @@ body {
   cursor: pointer;
   opacity: 0.75;
   line-height: 0;
+}
+
+/* お題モード（PC）はツールバーに効果音トグルだけが残るため、隣に高さの基準が
+   なくなる。単独になったときに潰れないよう最低高さを与える */
+body.quiz-mode .sound-toggle {
+  min-height: 1.9rem;
 }
 
 .sound-toggle svg {
@@ -902,10 +911,19 @@ body.quiz-mode #tutorial-replay {
     gap: 0.4rem;
   }
 
-  /* スマホは指で押しやすいよう、アイコンは20pxのままパディングだけ広げて
-     タップ領域を約44pxに（アイコン自体は大きくしない＝場所は取らない） */
+  /* スマホ: 縦は align-self: stretch で「お題に挑戦」「使い方を見る」と同じ高さに
+     揃える（縦paddingは持たせない）。横だけ少し広げてタップ幅を確保 */
   .sound-toggle {
-    padding: 0.65rem;
+    padding: 0 0.7rem;
+  }
+
+  /* 「雲ができた！」の一行が、スマホで縦に広げた情報パネル（.panel-plate の
+     height を 64 に拡張済み。SVG座標で y=8〜72）と重なるため、スマホだけ下げる。
+     <text> は CSS の y が効かないので transform: translateY で見た目の位置を
+     ずらす（.info-panel text 等と同じ方式）。y=80→96 相当に下げてもグリフ下端は
+     y≈99 で、山頂 y=120 より十分上に収まる */
+  .cloud-flash {
+    transform: translateY(16px);
   }
 
   /* マップ内文字サイズの引き上げ（2026-09-05・実ユーザー指摘）。SVGはviewBoxで
