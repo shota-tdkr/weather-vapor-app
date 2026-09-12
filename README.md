@@ -200,9 +200,11 @@ Firefox・Safariは未確認のため、Chromeでの利用を推奨します。
 
 ## 音源クレジット
 
-効果音「雲ができた瞬間」の音源は **OtoLogic（<https://otologic.jp> / CC BY 4.0）**
-の「Fantasize071ShortLow」をお借りしています（`sfx/cloud-form.mp3`。ファイルは
-未加工。アプリ内では控えめの音量で再生しています）。
+効果音「雲ができた瞬間」の音源は **OtoLogic（<https://otologic.jp> /
+CC BY 4.0：<https://creativecommons.org/licenses/by/4.0/deed.ja>）**
+の「Fantasize071ShortLow」をお借りしています（`sfx/cloud-form.mp3`。約1.6秒に
+トリムし、末尾0.4秒のフェードアウトを追加。アプリ内では控えめの音量で
+再生しています）。
 
 ## AI利用について
 
@@ -214,3 +216,6 @@ Firefox・Safariは未確認のため、Chromeでの利用を推奨します。
 ## ライセンス
 
 MIT License（`LICENSE` を参照）。
+
+ただし効果音ファイル（`sfx/cloud-form.mp3`）はMITの対象外で、
+OtoLogicのCC BY 4.0（上記「音源クレジット」参照）に従います。
